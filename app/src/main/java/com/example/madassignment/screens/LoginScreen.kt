@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.example.madassignment.R
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,10 +37,17 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var isLoginMode by remember { mutableStateOf(true) }
-    var passwordVisible by remember { mutableStateOf(false) } // Add this line
+    var passwordVisible by remember { mutableStateOf(false) }
     val authState by jobViewModel.authState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotPasswordEmail by remember { mutableStateOf("") }
+    var forgotPasswordName by remember { mutableStateOf("") }
+    var forgotPasswordMessage by remember { mutableStateOf<String?>(null) }
+    var retrievedPassword by remember { mutableStateOf<String?>(null) }
 
     // Validation states
     var emailError by remember { mutableStateOf("") }
@@ -57,6 +65,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+
 
             Image(
                 painter = painterResource(id = R.drawable.logo),
@@ -226,6 +235,151 @@ fun LoginScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+
+            if (isLoginMode) {
+                TextButton(
+                    onClick = {
+                        showForgotPasswordDialog = true
+                        retrievedPassword = null // Reset when opening dialog
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "Forgot Password?",
+                        color = Color.Red
+                    )
+                }
+            }
+
+            // Forgot Password Dialog
+            if (showForgotPasswordDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showForgotPasswordDialog = false
+                        forgotPasswordMessage = null
+                        forgotPasswordEmail = ""
+                        forgotPasswordName = ""
+                        retrievedPassword = null
+                    },
+                    title = {
+                        Text(if (retrievedPassword != null) "Password Retrieved" else "Retrieve Password")
+                    },
+                    text = {
+                        Column {
+                            if (retrievedPassword != null) {
+                                // Show the retrieved password
+                                Text(
+                                    text = "Your password has been retrieved successfully!",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                Text(
+                                    text = "Password:",
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                                Text(
+                                    text = retrievedPassword ?: "",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Please keep your password secure.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            } else if (forgotPasswordMessage != null) {
+                                // Show error message
+                                Text(
+                                    text = forgotPasswordMessage!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                            }
+
+                            if (retrievedPassword == null) {
+                                // Only show input fields if password hasn't been retrieved yet
+                                OutlinedTextField(
+                                    value = forgotPasswordEmail,
+                                    onValueChange = { forgotPasswordEmail = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    label = { Text("Email Address") },
+                                    placeholder = { Text("Enter your registered email") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                    singleLine = true
+                                )
+
+                                OutlinedTextField(
+                                    value = forgotPasswordName,
+                                    onValueChange = { forgotPasswordName = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    label = { Text("Full Name") },
+                                    placeholder = { Text("Enter your full name as registered") },
+                                    singleLine = true
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        if (retrievedPassword != null) {
+                            // Show "OK" button after password is retrieved
+                            Button(
+                                onClick = {
+                                    showForgotPasswordDialog = false
+                                    retrievedPassword = null
+                                    forgotPasswordEmail = ""
+                                    forgotPasswordName = ""
+                                }
+                            ) {
+                                Text("OK")
+                            }
+                        } else {
+                            // Show "Retrieve Password" button
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        jobViewModel.retrievePassword(forgotPasswordEmail, forgotPasswordName)
+                                            .onSuccess { password ->
+                                                retrievedPassword = password
+                                                forgotPasswordMessage = null
+                                            }
+                                            .onFailure { e ->
+                                                forgotPasswordMessage = "Error: ${e.message}"
+                                                retrievedPassword = null
+                                            }
+                                    }
+                                },
+                                enabled = forgotPasswordEmail.isNotBlank() && forgotPasswordName.isNotBlank()
+                            ) {
+                                Text("Retrieve Password")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        if (retrievedPassword == null) {
+                            // Show cancel button only when not showing retrieved password
+                            TextButton(
+                                onClick = {
+                                    showForgotPasswordDialog = false
+                                    forgotPasswordMessage = null
+                                    forgotPasswordEmail = ""
+                                    forgotPasswordName = ""
+                                    retrievedPassword = null
+                                }
+                            ) {
+                                Text("Cancel")
+                            }
+                        }
+                    }
+                )
+            }
         }
-    }
+
+        }
 }

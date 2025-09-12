@@ -38,7 +38,7 @@ fun UnsaveJobDialog(
                 ) {
                     Text(
                         text = "Unsave Job",
-                        fontSize = 20.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = onDismiss) {

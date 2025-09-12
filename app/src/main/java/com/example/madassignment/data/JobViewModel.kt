@@ -257,6 +257,37 @@ class JobViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    suspend fun retrievePassword(email: String, name: String): Result<String> {
+        return try {
+            _authState.value = AuthState.LOADING
+            _errorMessage.value = null
+
+            if (!ValidationUtils.isValidEmail(email)) {
+                throw Exception("Please enter a valid email address")
+            }
+
+            if (name.isBlank()) {
+                throw Exception("Please enter your name")
+            }
+
+            val user = repository.getUserByEmail(email)
+            if (user == null) {
+                throw Exception("No account found with this email address")
+            }
+
+            if (user.name != name) {
+                throw Exception("Name does not match our records. Please enter the exact name used during registration.")
+            }
+
+            _authState.value = AuthState.SUCCESS
+            Result.success(user.password) // Return the actual password
+        } catch (e: Exception) {
+            _authState.value = AuthState.ERROR
+            _errorMessage.value = e.message ?: "Password retrieval failed"
+            Result.failure(e)
+        }
+    }
+
     fun addCommunityPost(post: CommunityPost) {
         viewModelScope.launch {
             try {

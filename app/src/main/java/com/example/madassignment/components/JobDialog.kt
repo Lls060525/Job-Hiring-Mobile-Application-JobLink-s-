@@ -53,12 +53,24 @@ fun JobDialog(
             Column(
                 modifier = Modifier.padding(24.dp)
             ) {
+                // Job Title and Company
                 Text(
                     text = job.title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
+
+                // ADDED: Display company name if available
+                if (job.company.isNotBlank()) {
+                    Text(
+                        text = job.company,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
 
                 if (job.subtitle.isNotEmpty()) {
                     Text(
@@ -77,6 +89,11 @@ fun JobDialog(
                     JobDetailRow("Type", job.type)
                     JobDetailRow("Category", job.category)
                     JobDetailRow("Salary", job.salary)
+
+                    // ADDED: Display required skills if available
+                    if (job.requiredSkills.isNotBlank()) {
+                        JobDetailRow("Skills", job.requiredSkills)
+                    }
                 }
 
                 // Action Buttons
@@ -106,9 +123,9 @@ fun JobDialog(
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = if (isSaved) "Unsave" else "Save",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(10.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(if (isSaved) "Unsave" else "Save")
                     }
 

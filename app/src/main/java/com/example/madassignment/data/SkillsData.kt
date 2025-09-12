@@ -97,7 +97,7 @@ val commonSkills = listOf(
     "Relationship Management"
 )
 
-val skillLevels = listOf("Beginner", "Intermediate", "Advanced", "Expert")
+val skillLevels = listOf("Basic", "Pro", "Expert")
 
 data class UserSkill(
     val name: String,

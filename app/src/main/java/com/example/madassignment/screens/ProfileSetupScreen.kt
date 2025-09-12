@@ -36,6 +36,9 @@ fun ProfileSetupScreen(
     var company by remember { mutableStateOf("") }
     var showSkillsDialog by remember { mutableStateOf(false) }
 
+    val isNameValid = remember(name) { isValidName(name) || name.isEmpty() }
+    val isAgeValid = remember(age) { isValidAge(age) || age.isEmpty() }
+
     val currentUser by jobViewModel.currentUser.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -77,7 +80,16 @@ fun ProfileSetupScreen(
                     .padding(bottom = 16.dp),
                 label = { Text("Full Name *") },
                 placeholder = { Text("Enter your full name") },
-                singleLine = true
+                singleLine = true,
+                isError = !isNameValid && name.isNotBlank(),
+                supportingText = {
+                    if (!isNameValid && name.isNotBlank()) {
+                        Text(
+                            text = "Please enter a valid name (letters only, min 2 characters)",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             )
 
             // Age Input
@@ -90,7 +102,16 @@ fun ProfileSetupScreen(
                 label = { Text("Age *") },
                 placeholder = { Text("Enter your age") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
+                singleLine = true,
+                isError = !isAgeValid && age.isNotBlank(),
+                supportingText = {
+                    if (!isAgeValid && age.isNotBlank()) {
+                        Text(
+                            text = "Please enter a valid age (1-150)",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             )
 
             // Company Input (ADD THIS)
@@ -151,7 +172,7 @@ fun ProfileSetupScreen(
             // Setup Button
             Button(
                 onClick = {
-                    if (name.isNotBlank() && age.isNotBlank()) {
+                    if (isValidName(name) && isValidAge(age)) {
                         currentUser?.let { user ->
                             val profile = UserProfile(
                                 userId = user.id,
@@ -159,7 +180,7 @@ fun ProfileSetupScreen(
                                 age = age,
                                 aboutMe = aboutMe,
                                 skills = skills,
-                                company = company // ADD THIS
+                                company = company
                             )
                             scope.launch {
                                 jobViewModel.updateUserProfile(profile).onSuccess {
@@ -172,14 +193,14 @@ fun ProfileSetupScreen(
                         }
                     } else {
                         scope.launch {
-                            snackbarHostState.showSnackbar("Please fill in required fields (*)")
+                            snackbarHostState.showSnackbar("Please fix validation errors before continuing")
                         }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = name.isNotBlank() && age.isNotBlank()
+                enabled = name.isNotBlank() && age.isNotBlank() && isValidName(name) && isValidAge(age)
             ) {
                 Text("Complete Setup", fontSize = 16.sp)
             }

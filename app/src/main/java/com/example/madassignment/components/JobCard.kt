@@ -31,9 +31,8 @@ fun JobCard(
             .fillMaxWidth()
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = { onClick() }, // Handle regular click
+                    onTap = { onClick() },
                     onLongPress = {
-                        // Handle long press based on job status
                         if (isSaved && onUnsave != null) {
                             onUnsave()
                         } else if (isApplied && onUnapply != null) {
@@ -59,12 +58,13 @@ fun JobCard(
                         fontWeight = FontWeight.Bold
                     )
 
-                    // ADD THIS: Display company name if available
+                    // ENHANCED: Display company name more prominently
                     if (job.company.isNotBlank()) {
                         Text(
                             text = job.company,
                             fontSize = 14.sp,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }

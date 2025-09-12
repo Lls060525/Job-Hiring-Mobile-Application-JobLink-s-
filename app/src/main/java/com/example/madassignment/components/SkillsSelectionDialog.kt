@@ -259,7 +259,7 @@ fun SkillChip(
         label = {
             Text(
                 "${skill.name} (${skill.level})",
-                fontSize = 11.sp, // Smaller font
+                fontSize = 5.sp, // Smaller font
                 maxLines = 1
             )
         },

@@ -41,6 +41,19 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.vector.ImageVector
 
+internal fun isValidName(name: String): Boolean {
+    return name.isNotBlank() && name.length >= 2 && name.all { it.isLetter() || it.isWhitespace() }
+}
+
+internal fun isValidAge(age: String): Boolean {
+    return try {
+        val ageInt = age.toInt()
+        ageInt in 1..150
+    } catch (e: NumberFormatException) {
+        false
+    }
+}
+
 @Composable
 fun ProfileScreen(jobViewModel: JobViewModel) {
     var isEditing by remember { mutableStateOf(false) }
@@ -48,6 +61,7 @@ fun ProfileScreen(jobViewModel: JobViewModel) {
     var showLogoutDialog by remember { mutableStateOf(false) } // Add this line
     val currentUser by jobViewModel.currentUser.collectAsState()
     val userProfile by jobViewModel.userProfile.collectAsState()
+
 
     var name by remember { mutableStateOf(userProfile?.name ?: "") }
     var age by remember { mutableStateOf(userProfile?.age ?: "") }
@@ -226,27 +240,34 @@ fun ProfileScreen(jobViewModel: JobViewModel) {
 
                     Button(
                         onClick = {
-                            currentUser?.let { user ->
-                                val updatedProfile = UserProfile(
-                                    userId = user.id,
-                                    name = name,
-                                    age = age,
-                                    aboutMe = aboutMe,
-                                    skills = skills,
-                                    company = company,
-                                    profileImageUri = profileImageUri
-                                )
-                                scope.launch {
-                                    jobViewModel.updateUserProfile(updatedProfile).onSuccess {
-                                        snackbarHostState.showSnackbar("Profile saved successfully!")
-                                        isEditing = false
-                                    }.onFailure {
-                                        snackbarHostState.showSnackbar("Failed to save profile: ${it.message}")
+                            if (isValidName(name) && isValidAge(age)) {
+                                currentUser?.let { user ->
+                                    val updatedProfile = UserProfile(
+                                        userId = user.id,
+                                        name = name,
+                                        age = age,
+                                        aboutMe = aboutMe,
+                                        skills = skills,
+                                        company = company,
+                                        profileImageUri = profileImageUri
+                                    )
+                                    scope.launch {
+                                        jobViewModel.updateUserProfile(updatedProfile).onSuccess {
+                                            snackbarHostState.showSnackbar("Profile saved successfully!")
+                                            isEditing = false
+                                        }.onFailure {
+                                            snackbarHostState.showSnackbar("Failed to save profile: ${it.message}")
+                                        }
                                     }
+                                }
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Please fix validation errors before saving")
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        enabled = isValidName(name) && isValidAge(age) // Disable button if invalid
                     ) {
                         Text("Save Changes")
                     }
@@ -254,6 +275,7 @@ fun ProfileScreen(jobViewModel: JobViewModel) {
             }
         }
     }
+
 
     // Skills Selection Dialog
     if (showSkillsDialog) {
@@ -521,7 +543,9 @@ fun InfoItem(
     onValueChange: (String) -> Unit,
     icon: ImageVector,
     keyboardType: KeyboardType = KeyboardType.Text,
-    isMultiline: Boolean = false
+    isMultiline: Boolean = false,
+    isValid: Boolean = true,
+    errorMessage: String? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -545,15 +569,26 @@ fun InfoItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             if (isEditing) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Enter your $label") },
-                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                    singleLine = !isMultiline,
-                    maxLines = if (isMultiline) 3 else 1
-                )
+                Column {
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Enter your $label") },
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        singleLine = !isMultiline,
+                        maxLines = if (isMultiline) 3 else 1,
+                        isError = !isValid,
+                        supportingText = {
+                            if (!isValid && errorMessage != null) {
+                                Text(
+                                    text = errorMessage,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    )
+                }
             } else {
                 Text(
                     text = if (value.isBlank()) "Not specified" else value,
