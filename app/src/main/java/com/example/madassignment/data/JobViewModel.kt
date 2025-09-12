@@ -39,11 +39,10 @@ class JobViewModel(private val context: Context) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            try {
-                // Load public community posts safely
-                loadCommunityPosts()
-            } catch (e: Exception) {
-                e.printStackTrace()
+            // Set up real-time listener
+            firebaseService.addPostsRealTimeListener { updatedPosts ->
+                allCommunityPosts.clear()
+                allCommunityPosts.addAll(updatedPosts)
             }
         }
     }
@@ -291,21 +290,22 @@ class JobViewModel(private val context: Context) : ViewModel() {
     fun addCommunityPost(post: CommunityPost) {
         viewModelScope.launch {
             try {
-                // Use Firebase instead of Room for community posts
-                val postId = firebaseService.addPost(post)
-                if (postId.isNotBlank()) {
-                    val newPost = post.copy(id = postId.hashCode().toString())
+                // Use Firebase to add post and get the real ID
+                val firebasePostId = firebaseService.addPost(post)
+                if (firebasePostId.isNotBlank()) {
+                    // Create post with the actual Firebase ID
+                    val newPost = post.copy(id = firebasePostId)
                     communityPosts.add(0, newPost)
                     allCommunityPosts.add(0, newPost)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Fallback to Room if Firebase fails
-                val user = currentUser.value // Get the value directly
+                // Fallback to Room
+                val user = currentUser.value
                 if (user != null) {
                     val postId = repository.addUserPost(post, user.id)
                     if (postId > 0) {
-                        val newPost = post.copy(id = postId.toInt().toString(), userId = user.id)
+                        val newPost = post.copy(id = postId.toString(), userId = user.id)
                         communityPosts.add(0, newPost)
                         allCommunityPosts.add(0, newPost)
                     }
@@ -314,36 +314,17 @@ class JobViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    fun togglePostLike(postId: String) { // ← Change parameter to String
+    fun togglePostLike(postId: String) {
         viewModelScope.launch {
             try {
                 val user = currentUser.value
-                if (user != null) {
-                    val post = firebaseService.getPostById(postId) // ← Now uses correct ID
+                if (user != null && postId.isNotBlank()) {
+                    // Use the atomic operation from FirebaseService
+                    val success = firebaseService.togglePostLike(postId, user.id)
 
-                    post?.let { firebasePost ->
-                        val likedByList = if (firebasePost.likedBy.isBlank()) {
-                            mutableListOf()
-                        } else {
-                            firebasePost.likedBy.split(",").toMutableList()
-                        }
-
-                        if (likedByList.contains(user.id.toString())) {
-                            likedByList.remove(user.id.toString())
-                            val updatedPost = firebasePost.copy(
-                                likes = firebasePost.likes - 1,
-                                likedBy = likedByList.joinToString(",")
-                            )
-                            firebaseService.updatePostLikes(postId, updatedPost.likes, updatedPost.likedBy)
-                        } else {
-                            likedByList.add(user.id.toString())
-                            val updatedPost = firebasePost.copy(
-                                likes = firebasePost.likes + 1,
-                                likedBy = likedByList.joinToString(",")
-                            )
-                            firebaseService.updatePostLikes(postId, updatedPost.likes, updatedPost.likedBy)
-                        }
-                        loadCommunityPosts() // Refresh the posts
+                    if (success) {
+                        // Refresh the posts to show updated like counts
+                        loadCommunityPosts()
                     }
                 }
             } catch (e: Exception) {
@@ -354,13 +335,11 @@ class JobViewModel(private val context: Context) : ViewModel() {
 
 
     fun isPostLiked(post: CommunityPost): Boolean {
+        val user = currentUser.value ?: return false
+        if (post.likedBy.isBlank()) return false
+
         return try {
-            val user = currentUser.value
-            if (user != null && post.likedBy.isNotBlank()) {
-                post.likedBy.split(",").contains(user.id.toString())
-            } else {
-                false
-            }
+            post.likedBy.split(",").contains(user.id.toString())
         } catch (e: Exception) {
             e.printStackTrace()
             false

@@ -146,10 +146,10 @@ fun JobDialog(
                         Icon(
                             imageVector = Icons.Default.Send,
                             contentDescription = if (isApplied) "Applied" else "Apply",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(10.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (isApplied) "Applied" else "Apply")
+                        Text( text = if (isApplied) "Applied" else "Apply", fontSize = 12.sp)
                     }
                 }
             }

@@ -129,7 +129,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
             onDismiss = { showCreateDialog = false },
             onPostCreated = { content ->
                 val newPost = com.example.madassignment.data.CommunityPost(
-                    id = 0.toString(),
+                    id = "",
                     author = userProfile?.name ?: currentUser?.name ?: "Anonymous",
                     timeAgo = "Just now",
                     company = userProfile?.company ?: "",
