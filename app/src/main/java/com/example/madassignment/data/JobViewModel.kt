@@ -11,6 +11,7 @@ import com.example.madassignment.utils.ValidationUtils
 
 class JobViewModel(private val context: Context) : ViewModel() {
     private val repository = AppRepository(context)
+    private val firebaseService = FirebaseService()
 
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser
@@ -89,11 +90,23 @@ class JobViewModel(private val context: Context) : ViewModel() {
 
     private suspend fun loadCommunityPosts() {
         try {
-            allCommunityPosts.clear()
-            val posts = repository.getAllCommunityPosts()
-            allCommunityPosts.addAll(posts)
+            // Try Firebase first
+            val firebasePosts = firebaseService.getAllPosts()
+            if (firebasePosts.isNotEmpty()) {
+                allCommunityPosts.clear()
+                allCommunityPosts.addAll(firebasePosts)
+            } else {
+                // Fallback to Room if Firebase has no posts
+                val posts = repository.getAllCommunityPosts()
+                allCommunityPosts.clear()
+                allCommunityPosts.addAll(posts)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
+            // Fallback to Room if Firebase fails
+            val posts = repository.getAllCommunityPosts()
+            allCommunityPosts.clear()
+            allCommunityPosts.addAll(posts)
         }
     }
 
@@ -247,45 +260,59 @@ class JobViewModel(private val context: Context) : ViewModel() {
     fun addCommunityPost(post: CommunityPost) {
         viewModelScope.launch {
             try {
-                currentUser.value?.let { user ->
+                // Use Firebase instead of Room for community posts
+                val postId = firebaseService.addPost(post)
+                if (postId.isNotBlank()) {
+                    val newPost = post.copy(id = postId.hashCode().toString())
+                    communityPosts.add(0, newPost)
+                    allCommunityPosts.add(0, newPost)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Fallback to Room if Firebase fails
+                val user = currentUser.value // Get the value directly
+                if (user != null) {
                     val postId = repository.addUserPost(post, user.id)
                     if (postId > 0) {
-                        val newPost = post.copy(id = postId.toInt(), userId = user.id)
+                        val newPost = post.copy(id = postId.toInt().toString(), userId = user.id)
                         communityPosts.add(0, newPost)
                         allCommunityPosts.add(0, newPost)
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
 
-    // ADD THESE MISSING FUNCTIONS:
-    fun togglePostLike(postId: Int) {
+    fun togglePostLike(postId: String) { // ← Change parameter to String
         viewModelScope.launch {
             try {
-                currentUser.value?.let { user ->
-                    val post = repository.getPostById(postId)
-                    post?.let {
-                        val likedByList = it.likedBy.split(",").toMutableList()
+                val user = currentUser.value
+                if (user != null) {
+                    val post = firebaseService.getPostById(postId) // ← Now uses correct ID
+
+                    post?.let { firebasePost ->
+                        val likedByList = if (firebasePost.likedBy.isBlank()) {
+                            mutableListOf()
+                        } else {
+                            firebasePost.likedBy.split(",").toMutableList()
+                        }
+
                         if (likedByList.contains(user.id.toString())) {
                             likedByList.remove(user.id.toString())
-                            val updatedPost = it.copy(
-                                likes = it.likes - 1,
+                            val updatedPost = firebasePost.copy(
+                                likes = firebasePost.likes - 1,
                                 likedBy = likedByList.joinToString(",")
                             )
-                            repository.updatePost(updatedPost)
+                            firebaseService.updatePostLikes(postId, updatedPost.likes, updatedPost.likedBy)
                         } else {
                             likedByList.add(user.id.toString())
-                            val updatedPost = it.copy(
-                                likes = it.likes + 1,
+                            val updatedPost = firebasePost.copy(
+                                likes = firebasePost.likes + 1,
                                 likedBy = likedByList.joinToString(",")
                             )
-                            repository.updatePost(updatedPost)
+                            firebaseService.updatePostLikes(postId, updatedPost.likes, updatedPost.likedBy)
                         }
-                        loadCommunityPosts()
-                        loadAllUserData(user.id)
+                        loadCommunityPosts() // Refresh the posts
                     }
                 }
             } catch (e: Exception) {
@@ -294,11 +321,15 @@ class JobViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+
     fun isPostLiked(post: CommunityPost): Boolean {
         return try {
-            currentUser.value?.let { user ->
+            val user = currentUser.value
+            if (user != null && post.likedBy.isNotBlank()) {
                 post.likedBy.split(",").contains(user.id.toString())
-            } ?: false
+            } else {
+                false
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             false

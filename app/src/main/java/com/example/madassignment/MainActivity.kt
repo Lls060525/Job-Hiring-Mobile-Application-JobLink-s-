@@ -13,11 +13,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.navigation.JobApp
 import com.example.madassignment.ui.theme.MadAssignmentTheme
+import com.google.firebase.Firebase
+import com.google.firebase.initialize
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize Firebase
+        Firebase.initialize(this)
 
         setContent {
             MadAssignmentTheme {

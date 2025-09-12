@@ -13,6 +13,7 @@ data class User(
     val createdAt: Date = Date()
 )
 
+
 @Entity(tableName = "user_profiles")
 data class UserProfile(
     @PrimaryKey val userId: Int,
@@ -44,7 +45,7 @@ data class Job(
 
 @Entity(tableName = "community_posts")
 data class CommunityPost(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val id: String,
     val author: String,
     val timeAgo: String,
     val company: String,

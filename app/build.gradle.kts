@@ -1,10 +1,12 @@
+// REMOVE this line:
+// import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.kapt) // ← ADD THIS LINE
-    // Remove Firebase plugin
-    // alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -52,11 +54,16 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     implementation(libs.firebase.crashlytics.buildtools)
-    kapt("androidx.room:room-compiler:2.6.1") // ← This will work now
+    kapt("androidx.room:room-compiler:2.6.1")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.6.0")

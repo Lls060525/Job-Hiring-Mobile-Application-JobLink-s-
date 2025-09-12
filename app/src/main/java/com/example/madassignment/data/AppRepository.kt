@@ -181,10 +181,10 @@ class AppRepository(context: Context) {
     suspend fun getAllCommunityPosts(): List<CommunityPost> {
         return try {
             val posts = appDao.getAllCommunityPosts()
-            Log.d("AppRepository", "Retrieved ${posts.size} community posts")
+            Log.d("AppRepository", "Retrieved ${posts.size} community posts from Room")
             posts
         } catch (e: Exception) {
-            Log.e("AppRepository", "Error getting community posts: ${e.message}")
+            Log.e("AppRepository", "Error getting community posts from Room: ${e.message}")
             emptyList()
         }
     }
@@ -193,10 +193,10 @@ class AppRepository(context: Context) {
         return try {
             val userPost = post.copy(userId = userId)
             val postId = appDao.insertPost(userPost)
-            Log.d("AppRepository", "Added post for userId: $userId, postId: $postId")
+            Log.d("AppRepository", "Added post to Room: $postId")
             postId
         } catch (e: Exception) {
-            Log.e("AppRepository", "Error adding user post: ${e.message}")
+            Log.e("AppRepository", "Error adding user post to Room: ${e.message}")
             -1
         }
     }
@@ -755,19 +755,3 @@ fun getNewJobs(): List<Job> {
     )
 }
 
-fun getCommunityPosts(): List<CommunityPost> {
-    return listOf(
-        CommunityPost(
-            author = "Alex Lee",
-            timeAgo = "16d ago",
-            company = "Masks Enterprise",
-            content = "This is the most interesting company..."
-        ),
-        CommunityPost(
-            author = "Yong Yee Hui",
-            timeAgo = "1d ago",
-            company = "Digi Enterprise",
-            content = "It is understood that this is a good company..."
-        )
-    )
-}

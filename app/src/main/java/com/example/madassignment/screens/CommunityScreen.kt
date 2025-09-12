@@ -114,7 +114,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                     CommunityPost(
                         post = post,
                         onLikeClick = {
-                            jobViewModel.togglePostLike(post.id)
+                            jobViewModel.togglePostLike(post.id) // ← Now passes String ID
                         },
                         isLiked = jobViewModel.isPostLiked(post)
                     )
@@ -129,7 +129,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
             onDismiss = { showCreateDialog = false },
             onPostCreated = { content ->
                 val newPost = com.example.madassignment.data.CommunityPost(
-                    id = 0,
+                    id = 0.toString(),
                     author = userProfile?.name ?: currentUser?.name ?: "Anonymous",
                     timeAgo = "Just now",
                     company = userProfile?.company ?: "",

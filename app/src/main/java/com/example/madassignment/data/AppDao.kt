@@ -46,6 +46,8 @@ interface AppDao {
     @Update
     suspend fun updateJob(job: Job)
 
+
+
     @Query("DELETE FROM jobs WHERE userId = :userId AND id = :jobId AND isSaved = 0 AND isApplied = 0")
     suspend fun deleteUserJob(userId: Int, jobId: Int)
 
