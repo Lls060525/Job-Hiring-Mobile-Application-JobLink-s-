@@ -11,27 +11,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import com.example.madassignment.data.JobViewModel
 
+// JobApp.kt
 @Composable
 fun JobApp(jobViewModel: JobViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val currentUserState = jobViewModel.currentUser.collectAsState()
+    val isAdminState = jobViewModel.isAdmin.collectAsState()
     val currentUser = currentUserState.value
+    val isAdmin = isAdminState.value
 
-    // Debug logging
-    println("DEBUG: Current user = $currentUser")
-    println("DEBUG: Current route = $currentRoute")
-    println("DEBUG: Show bottom bar = ${currentUser != null && currentRoute != "auth"}")
-
+    // Exclude admin route from showing bottom bar
     val showBottomBar = currentUser != null &&
             currentRoute != "auth" &&
-            currentRoute != "profileSetup"
+            currentRoute != "profileSetup" &&
+            currentRoute != Screen.Admin.route // Add this line
+
+    // Use different screens for admin users
+    val bottomBarScreens = if (isAdmin) adminScreens else screens
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                BottomNavigationBar(navController)
+                BottomNavigationBar(
+                    navController = navController,
+                    screens = bottomBarScreens
+                )
             }
         }
     ) { innerPadding ->

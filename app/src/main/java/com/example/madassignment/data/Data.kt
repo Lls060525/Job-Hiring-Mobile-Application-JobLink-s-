@@ -10,9 +10,9 @@ data class User(
     val email: String,
     val password: String,
     val name: String,
+    val isAdmin: Boolean = false,
     val createdAt: Date = Date()
 )
-
 
 @Entity(tableName = "user_profiles")
 data class UserProfile(

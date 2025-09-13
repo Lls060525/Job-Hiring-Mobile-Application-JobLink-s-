@@ -19,6 +19,91 @@ class AppRepository(context: Context) {
         }
     }
 
+    // In AppRepository.kt
+    suspend fun createDefaultAdmin() {
+        val defaultAdminEmail = "admin@gmail.com"
+        val existingAdmin = getAdminByEmail(defaultAdminEmail)
+
+        if (existingAdmin == null) {
+            val adminId = registerAdmin(defaultAdminEmail, "admin123", "System Administrator")
+            // Create default admin profile
+            if (adminId > 0) {
+                val adminProfile = UserProfile(
+                    userId = adminId.toInt(),
+                    name = "System Administrator",
+                    age = "30",
+                    aboutMe = "System Administrator Account",
+                    skills = "Administration, Management, System Maintenance",
+                    company = "System",
+                    isSetupComplete = true
+                )
+                saveUserProfile(adminProfile)
+            }
+        }
+    }
+
+    // Add this method to your AppRepository class
+    suspend fun getAdminByEmail(email: String): User? {
+        return try {
+            val admin = appDao.getAdminByEmail(email)
+            Log.d("AppRepository", "Get admin by email: $email - ${if (admin != null) "Found" else "Not found"}")
+            admin
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting admin by email: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun registerAdmin(email: String, password: String, name: String): Long {
+        return try {
+            val user = User(email = email, password = password, name = name, isAdmin = true)
+            val userId = appDao.insertUser(user)
+            Log.d("AppRepository", "Registered admin: $email with ID: $userId")
+            userId
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error registering admin: ${e.message}")
+            -1
+        }
+    }
+
+    suspend fun loginAdmin(email: String, password: String): User? {
+        return try {
+            // First check if user exists and is admin
+            val admin = appDao.getAdminByEmail(email)
+            if (admin != null && admin.password == password) {
+                admin
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error logging in as admin: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun getAllAdmins(): List<User> {
+        return try {
+            appDao.getAllAdmins()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun promoteToAdmin(userId: Int): Boolean {
+        return try {
+            val user = appDao.getUserById(userId)
+            if (user != null) {
+                val updatedUser = user.copy(isAdmin = true)
+                appDao.updateUser(updatedUser)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     suspend fun loginUser(email: String, password: String): User? {
         return try {
             val user = appDao.getUser(email, password)

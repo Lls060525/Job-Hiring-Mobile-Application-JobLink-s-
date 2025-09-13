@@ -25,6 +25,9 @@ class JobViewModel(private val context: Context) : ViewModel() {
     private val _authState = MutableStateFlow(AuthState.IDLE)
     val authState: StateFlow<AuthState> = _authState
 
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
@@ -37,6 +40,7 @@ class JobViewModel(private val context: Context) : ViewModel() {
     val sampleRecommendedJobs = getRecommendedJobs()
     val sampleNewJobs = getNewJobs()
 
+    // JobViewModel.kt
     init {
         viewModelScope.launch {
             // Set up real-time listener
@@ -44,6 +48,9 @@ class JobViewModel(private val context: Context) : ViewModel() {
                 allCommunityPosts.clear()
                 allCommunityPosts.addAll(updatedPosts)
             }
+
+            // Create default admin
+            repository.createDefaultAdmin()
         }
     }
 
@@ -54,6 +61,79 @@ class JobViewModel(private val context: Context) : ViewModel() {
             loadUserProfile(userId) // Load the profile after initialization
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    suspend fun loginAdmin(email: String, password: String): Result<Unit> {
+        return try {
+            _authState.value = AuthState.LOADING
+            _errorMessage.value = null
+
+            if (!ValidationUtils.isValidEmail(email)) {
+                throw Exception("Please enter a valid email address")
+            }
+
+            val admin = repository.loginAdmin(email, password)
+            if (admin != null) {
+                _currentUser.value = admin
+                _isAdmin.value = true
+                println("DEBUG: Admin logged in: $admin")
+                loadUserData(admin.id)
+                loadUserProfile(admin.id)
+                _authState.value = AuthState.SUCCESS
+                Result.success(Unit)
+            } else {
+                throw Exception("Invalid admin credentials or not an admin")
+            }
+        } catch (e: Exception) {
+            _authState.value = AuthState.ERROR
+            _errorMessage.value = e.message ?: "Admin login failed"
+            Result.failure(e)
+        }
+    }
+
+    suspend fun registerAdmin(email: String, password: String, name: String): Result<Unit> {
+        return try {
+            _authState.value = AuthState.LOADING
+            _errorMessage.value = null
+
+            if (!ValidationUtils.isValidEmail(email)) {
+                throw Exception("Please enter a valid email address")
+            }
+
+            val existingUser = repository.getUserByEmail(email)
+            if (existingUser != null) {
+                throw Exception("User with this email already exists")
+            }
+
+            val userId = repository.registerAdmin(email, password, name)
+            if (userId > 0) {
+                val newAdmin = repository.getUserById(userId.toInt())
+                _currentUser.value = newAdmin
+                _isAdmin.value = true
+                println("DEBUG: Admin registered: $newAdmin")
+                newAdmin?.let {
+                    loadUserData(it.id)
+                    loadUserProfile(it.id)
+                }
+                _authState.value = AuthState.SUCCESS
+                Result.success(Unit)
+            } else {
+                throw Exception("Admin registration failed")
+            }
+        } catch (e: Exception) {
+            _authState.value = AuthState.ERROR
+            _errorMessage.value = e.message ?: "Admin registration failed"
+            Result.failure(e)
+        }
+    }
+
+    fun checkAdminStatus() {
+        viewModelScope.launch {
+            currentUser.value?.let { user ->
+                val dbUser = repository.getUserById(user.id)
+                _isAdmin.value = dbUser?.isAdmin ?: false
+            }
         }
     }
 
@@ -191,6 +271,7 @@ class JobViewModel(private val context: Context) : ViewModel() {
     fun logout() {
         _currentUser.value = null
         _userProfile.value = null
+        _isAdmin.value = false // Reset admin status
         _authState.value = AuthState.IDLE
         _errorMessage.value = null
         savedJobs.clear()

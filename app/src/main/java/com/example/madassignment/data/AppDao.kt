@@ -20,6 +20,16 @@ interface AppDao {
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: Int): User?
 
+    // Admin operations
+    @Query("SELECT * FROM users WHERE email = :email AND isAdmin = 1")
+    suspend fun getAdminByEmail(email: String): User?
+
+    @Query("SELECT * FROM users WHERE isAdmin = 1")
+    suspend fun getAllAdmins(): List<User>
+
+    @Update
+    suspend fun updateUser(user: User)
+
     // User profile operations
     @Insert
     suspend fun insertUserProfile(profile: UserProfile): Long

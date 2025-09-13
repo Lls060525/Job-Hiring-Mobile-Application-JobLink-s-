@@ -18,8 +18,10 @@ fun AppNavigation(
 ) {
     val currentUserState = jobViewModel.currentUser.collectAsState()
     val userProfileState = jobViewModel.userProfile.collectAsState()
+    val isAdminState = jobViewModel.isAdmin.collectAsState()
     val currentUser = currentUserState.value
     val userProfile = userProfileState.value
+    val isAdmin = isAdminState.value
 
     // Debug logging
     LaunchedEffect(currentUser, userProfile) {
@@ -32,6 +34,7 @@ fun AppNavigation(
         navController = navController,
         startDestination = when {
             currentUser == null -> "auth"
+            isAdmin -> Screen.Admin.route // Redirect to admin menu if admin
             userProfile?.isSetupComplete == null -> "profileSetup"
             else -> Screen.Home.route
         },
@@ -45,6 +48,10 @@ fun AppNavigation(
                     // Navigation is handled by the NavHost based on state
                 }
             )
+        }
+
+        composable(Screen.Admin.route) {
+            AdminMenuScreen(jobViewModel = jobViewModel)
         }
 
         composable("profileSetup") {

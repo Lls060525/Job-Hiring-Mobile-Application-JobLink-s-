@@ -41,6 +41,8 @@ fun LoginScreen(
     val authState by jobViewModel.authState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var isAdminLogin by remember { mutableStateOf(false) }
+
 
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
@@ -166,6 +168,24 @@ fun LoginScreen(
                 singleLine = true
             )
 
+            if (isLoginMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isAdminLogin,
+                        onCheckedChange = { isAdminLogin = it }
+                    )
+                    Text(
+                        text = "Login as Admin",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+
             Button(
                 onClick = {
                     // Validate fields before proceeding
@@ -183,13 +203,25 @@ fun LoginScreen(
                     if (!hasErrors) {
                         scope.launch {
                             if (isLoginMode) {
-                                jobViewModel.login(email, password).onSuccess {
-                                    println("DEBUG: Login successful, calling onLoginSuccess")
-                                    onLoginSuccess()
-                                }.onFailure {
-                                    snackbarHostState.showSnackbar("Login failed: ${it.message}")
+                                if (isAdminLogin) {
+                                    // ADMIN LOGIN
+                                    jobViewModel.loginAdmin(email, password).onSuccess {
+                                        println("DEBUG: Admin login successful, calling onLoginSuccess")
+                                        onLoginSuccess()
+                                    }.onFailure {
+                                        snackbarHostState.showSnackbar("Admin login failed: ${it.message}")
+                                    }
+                                } else {
+                                    // REGULAR USER LOGIN
+                                    jobViewModel.login(email, password).onSuccess {
+                                        println("DEBUG: Login successful, calling onLoginSuccess")
+                                        onLoginSuccess()
+                                    }.onFailure {
+                                        snackbarHostState.showSnackbar("Login failed: ${it.message}")
+                                    }
                                 }
                             } else {
+                                // REGISTRATION
                                 jobViewModel.register(email, password, name).onSuccess {
                                     println("DEBUG: Registration successful, calling onLoginSuccess")
                                     onLoginSuccess()
@@ -250,6 +282,7 @@ fun LoginScreen(
                     )
                 }
             }
+
 
             // Forgot Password Dialog
             if (showForgotPasswordDialog) {
