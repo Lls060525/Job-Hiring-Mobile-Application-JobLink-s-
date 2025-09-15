@@ -27,6 +27,23 @@ interface AppDao {
     @Query("SELECT * FROM users WHERE isAdmin = 1")
     suspend fun getAllAdmins(): List<User>
 
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteUser(userId: Int)
+
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<User>
+
+    // In AppDao.kt - Add these methods:
+
+    @Query("SELECT * FROM jobs WHERE userId = 0 ORDER BY id DESC") // System jobs (userId = 0)
+    suspend fun getAllSystemJobs(): List<Job>
+
+    @Query("SELECT * FROM jobs ORDER BY id DESC")
+    suspend fun getAllJobs(): List<Job>
+
+    @Query("DELETE FROM jobs WHERE id = :jobId")
+    suspend fun deleteJob(jobId: Int)
+
     @Update
     suspend fun updateUser(user: User)
 
@@ -88,6 +105,8 @@ interface AppDao {
 
     @Query("UPDATE jobs SET isApplied = 0 WHERE userId = :userId AND id = :jobId")
     suspend fun removeAppliedJob(userId: Int, jobId: Int)
+
+
 
 
 }

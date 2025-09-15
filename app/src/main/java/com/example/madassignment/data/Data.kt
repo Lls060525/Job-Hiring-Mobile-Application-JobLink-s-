@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
 
+
+
 @Entity(tableName = "users")
 data class User(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -11,7 +13,8 @@ data class User(
     val password: String,
     val name: String,
     val isAdmin: Boolean = false,
-    val createdAt: Date = Date()
+    val createdAt: Date = Date(),
+    val firestoreId: String = "" // Add Firestore document ID
 )
 
 @Entity(tableName = "user_profiles")
@@ -24,8 +27,10 @@ data class UserProfile(
     val company: String = "",
     val profileImageUri: String? = null,
     val lastUpdated: Date = Date(),
-    val isSetupComplete: Boolean = false
+    val isSetupComplete: Boolean = false,
+    val firestoreId: String = "" // Add Firestore document ID
 )
+
 @Entity(tableName = "jobs")
 data class Job(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -40,19 +45,22 @@ data class Job(
     val userId: Int = 0,
     val originalJobId: Int = 0,
     val requiredSkills: String = "",
-    val company: String = "" // Add this field
+    val company: String = "",
+    val firestoreId: String = "" // Add Firestore document ID
 )
 
 @Entity(tableName = "community_posts")
 data class CommunityPost(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: String, // This should match Firestore ID
     val author: String,
-    val timeAgo: String,
+    val timeAgo: String = "",
     val company: String,
     val content: String,
     var likes: Int = 0,
     val likedBy: String = "",
-    val userId: Int = 0
+    val userId: Int = 0,
+    val createdAt: Date = Date(),
+    val isSynced: Boolean = false // Track sync status
 )
 
 enum class AuthState {

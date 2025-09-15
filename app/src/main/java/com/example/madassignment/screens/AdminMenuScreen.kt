@@ -4,12 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,7 +20,7 @@ import com.example.madassignment.data.JobViewModel
 @Composable
 fun AdminMenuScreen(
     jobViewModel: JobViewModel,
-    navController: NavController? = null
+    navController: NavController // Removed null default, made non-nullable
 ) {
     // Get the current user from the ViewModel
     val currentUser by jobViewModel.currentUser.collectAsState()
@@ -35,12 +34,12 @@ fun AdminMenuScreen(
             ExtendedFloatingActionButton(
                 onClick = {
                     jobViewModel.logout()
-                    navController?.navigate("auth") {
+                    navController.navigate("auth") {
                         popUpTo(0) { inclusive = true }
                     }
                 },
                 icon = {
-                    Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout")
                 },
                 text = { Text("Logout") },
                 modifier = Modifier.padding(16.dp)
@@ -68,32 +67,21 @@ fun AdminMenuScreen(
             AdminOptionCard(
                 title = "User Management",
                 description = "View and manage all users",
-                onClick = { /* Handle user management */ }
+                onClick = { navController.navigate("adminUserManagement") }
             )
 
             AdminOptionCard(
                 title = "Job Listings",
                 description = "Manage job postings",
-                onClick = { /* Handle job management */ }
+                onClick = { navController.navigate("adminJobListings") }
             )
 
             AdminOptionCard(
                 title = "Community Posts",
                 description = "Moderate community content",
-                onClick = { /* Handle community moderation */ }
+                onClick = { navController.navigate("adminCommunityPosts") }
             )
 
-            AdminOptionCard(
-                title = "Statistics",
-                description = "View app analytics and metrics",
-                onClick = { /* Handle statistics */ }
-            )
-
-            AdminOptionCard(
-                title = "System Settings",
-                description = "Configure application settings",
-                onClick = { /* Handle system settings */ }
-            )
         }
     }
 }

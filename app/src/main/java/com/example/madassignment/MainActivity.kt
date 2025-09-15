@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -16,6 +17,7 @@ import com.example.madassignment.ui.theme.MadAssignmentTheme
 import com.google.firebase.Firebase
 import com.google.firebase.initialize
 
+// MainActivity.kt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +36,12 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     )
+
+                    // Initial sync when app starts
+//                    LaunchedEffect(Unit) {
+//                        jobViewModel.syncData()
+//                    }
+
                     JobApp(jobViewModel = jobViewModel)
                 }
             }

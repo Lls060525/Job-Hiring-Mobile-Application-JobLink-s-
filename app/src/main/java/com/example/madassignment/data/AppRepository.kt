@@ -4,14 +4,33 @@ import android.content.Context
 import android.util.Log
 
 class AppRepository(context: Context) {
+
     private val appDao = AppDatabase.getDatabase(context).appDao()
+    private val firebaseService = FirebaseService()
+
+
+
+    suspend fun getAllUsers(): List<User> {
+        return try {
+            val users = appDao.getAllUsers()
+            Log.d("AppRepository", "Retrieved ${users.size} users")
+            users
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting all users: ${e.message}")
+            emptyList()
+        }
+    }
 
     // User operations
     suspend fun registerUser(email: String, password: String, name: String): Long {
         return try {
             val user = User(email = email, password = password, name = name)
             val userId = appDao.insertUser(user)
-            Log.d("AppRepository", "Registered user: $email with ID: $userId")
+
+            // Also save to Firestore
+            val firestoreId = firebaseService.addUser(user.copy(id = userId.toInt()))
+
+            Log.d("AppRepository", "Registered user in both DBs: LocalID=$userId, FirestoreID=$firestoreId")
             userId
         } catch (e: Exception) {
             Log.e("AppRepository", "Error registering user: ${e.message}")
@@ -81,28 +100,6 @@ class AppRepository(context: Context) {
         }
     }
 
-    suspend fun getAllAdmins(): List<User> {
-        return try {
-            appDao.getAllAdmins()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun promoteToAdmin(userId: Int): Boolean {
-        return try {
-            val user = appDao.getUserById(userId)
-            if (user != null) {
-                val updatedUser = user.copy(isAdmin = true)
-                appDao.updateUser(updatedUser)
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
 
     suspend fun loginUser(email: String, password: String): User? {
         return try {
@@ -124,6 +121,8 @@ class AppRepository(context: Context) {
             Log.e("AppRepository", "Error getting user by email: ${e.message}")
             null
         }
+
+
     }
 
     suspend fun getUserById(userId: Int): User? {
@@ -137,6 +136,73 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun getAllUsersWithProfiles(): List<Pair<User, UserProfile?>> {
+        return try {
+            val result = firebaseService.getAllUsersWithProfiles()
+            Log.d("AppRepository", "Retrieved ${result.size} users with profiles from Firestore")
+            result
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting users with profiles from Firestore: ${e.message}")
+
+            // Fallback to local database
+            try {
+                val users = appDao.getAllUsers()
+                val result = mutableListOf<Pair<User, UserProfile?>>()
+
+                for (user in users) {
+                    val profile = appDao.getUserProfile(user.id)
+                    result.add(Pair(user, profile))
+                }
+
+                result
+            } catch (e2: Exception) {
+                Log.e("AppRepository", "Error getting users with profiles from local DB: ${e2.message}")
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun deleteUserFromFirestore(userId: Int): Boolean {
+        return try {
+            val success = firebaseService.deleteUserFromFirestore(userId)
+            if (success) {
+                // Also delete from local database
+                try {
+                    // You'll need to add a deleteUser method to AppDao
+                    // appDao.deleteUser(userId)
+                } catch (e: Exception) {
+                    Log.e("AppRepository", "Error deleting user from local DB: ${e.message}")
+                }
+            }
+            success
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting user from Firestore: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun promoteUserToAdminInFirestore(userId: Int): Boolean {
+        return try {
+            val success = firebaseService.promoteUserToAdmin(userId)
+            if (success) {
+                // Also update local database
+                try {
+                    val user = appDao.getUserById(userId)
+                    user?.let {
+                        val updatedUser = it.copy(isAdmin = true)
+                        appDao.updateUser(updatedUser)
+                    }
+                } catch (e: Exception) {
+                    Log.e("AppRepository", "Error updating user in local DB: ${e.message}")
+                }
+            }
+            success
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error promoting user in Firestore: ${e.message}")
+            false
+        }
+    }
+
     // User profile operations
     suspend fun saveUserProfile(profile: UserProfile): Long {
         return try {
@@ -147,7 +213,11 @@ class AppRepository(context: Context) {
             } else {
                 appDao.insertUserProfile(profile)
             }
-            Log.d("AppRepository", "Saved user profile for userId: ${profile.userId}, result: $result")
+
+            // Sync to Firestore
+            val firestoreId = firebaseService.addUserProfile(profile)
+
+            Log.d("AppRepository", "Saved user profile to both DBs")
             result
         } catch (e: Exception) {
             Log.e("AppRepository", "Error saving user profile: ${e.message}")
@@ -166,26 +236,81 @@ class AppRepository(context: Context) {
         }
     }
 
-    // Job operations
+    suspend fun addJob(job: Job): Long {
+        return try {
+            // Add to Firestore first
+            val firestoreId = firebaseService.addJob(job)
+            if (firestoreId.isNotBlank()) {
+                Log.d("AppRepository", "Job added to Firestore: $firestoreId")
+            }
+
+            // Add to Room database - THIS IS THE CRITICAL PART
+            val jobId = appDao.insertJob(job) // Make sure this is working
+
+            Log.d("AppRepository", "Job processed: LocalID=$jobId")
+            jobId
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error adding job: ${e.message}")
+            -1
+        }
+    }
+
+    // Job operations with dual persistence
     suspend fun saveUserJob(job: Job, userId: Int): Long {
         return try {
-            // Check if job already exists for this user
             val existingJob = appDao.getJobByOriginalId(userId, job.originalJobId)
             val result = if (existingJob != null) {
-                // Update existing job
                 val updatedJob = existingJob.copy(isSaved = true)
                 appDao.updateJob(updatedJob)
                 updatedJob.id.toLong()
             } else {
-                // Insert new job
                 val userJob = job.copy(userId = userId, isSaved = true)
                 appDao.insertJob(userJob)
             }
-            Log.d("AppRepository", "Saved job for userId: $userId, jobId: ${job.id}, result: $result")
+
+            // Sync to Firestore
+            val firestoreId = firebaseService.addJob(job.copy(userId = userId, isSaved = true))
+
+            Log.d("AppRepository", "Saved job to both DBs")
             result
         } catch (e: Exception) {
             Log.e("AppRepository", "Error saving user job: ${e.message}")
             -1
+        }
+    }
+
+    // In AppRepository.kt - Add these methods:
+
+    suspend fun getAllJobs(): List<Job> {
+        return try {
+            val jobs = appDao.getAllJobs()
+            Log.d("AppRepository", "Retrieved ${jobs.size} jobs from database")
+            jobs
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting all jobs: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun getAllSystemJobs(): List<Job> {
+        return try {
+            val jobs = appDao.getAllSystemJobs()
+            Log.d("AppRepository", "Retrieved ${jobs.size} system jobs from database")
+            jobs
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error getting system jobs: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun deleteJob(jobId: Int): Boolean {
+        return try {
+            appDao.deleteJob(jobId)
+            Log.d("AppRepository", "Deleted job: $jobId")
+            true
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error deleting job: ${e.message}")
+            false
         }
     }
 
@@ -305,6 +430,19 @@ class AppRepository(context: Context) {
             null
         }
     }
+
+    // AppRepository.kt
+    suspend fun migrateJobsToFirestore(): Boolean {
+        return try {
+            val success = firebaseService.migrateAllJobsToFirestore()
+            Log.d("AppRepository", "Job migration ${if (success) "succeeded" else "failed"}")
+            success
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error in job migration: ${e.message}")
+            false
+        }
+    }
+
     suspend fun initializeUserSampleData(userId: Int) {
         try {
             // Only check if profile exists, don't create it automatically

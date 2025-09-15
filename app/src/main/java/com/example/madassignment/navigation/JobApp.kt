@@ -26,7 +26,10 @@ fun JobApp(jobViewModel: JobViewModel) {
     val showBottomBar = currentUser != null &&
             currentRoute != "auth" &&
             currentRoute != "profileSetup" &&
-            currentRoute != Screen.Admin.route // Add this line
+            currentRoute != Screen.Admin.route &&
+            currentRoute != "adminCommunityPosts" &&
+            currentRoute != "adminUserManagement" &&
+            currentRoute != "adminJobListings"
 
     // Use different screens for admin users
     val bottomBarScreens = if (isAdmin) adminScreens else screens

@@ -41,9 +41,11 @@ fun LoginScreen(
     val authState by jobViewModel.authState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var isAdminLogin by remember { mutableStateOf(false) }
 
-
+    // Track if admin email is detected
+    val isAdminEmail by derivedStateOf {
+        email.equals("admin@gmail.com", ignoreCase = true)
+    }
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var forgotPasswordEmail by remember { mutableStateOf("") }
@@ -67,7 +69,6 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-
 
             Image(
                 painter = painterResource(id = R.drawable.logo),
@@ -143,7 +144,6 @@ fun LoginScreen(
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = "Password")
                 },
-                // Add visibility toggle functionality
                 trailingIcon = {
                     IconButton(
                         onClick = { passwordVisible = !passwordVisible }
@@ -168,22 +168,14 @@ fun LoginScreen(
                 singleLine = true
             )
 
-            if (isLoginMode) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = isAdminLogin,
-                        onCheckedChange = { isAdminLogin = it }
-                    )
-                    Text(
-                        text = "Login as Admin",
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
+            // Show admin detection message
+            if (isLoginMode && isAdminEmail) {
+                Text(
+                    text = "Admin account detected",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
             }
 
             Button(
@@ -203,7 +195,8 @@ fun LoginScreen(
                     if (!hasErrors) {
                         scope.launch {
                             if (isLoginMode) {
-                                if (isAdminLogin) {
+                                // AUTO-DETECT ADMIN LOGIN
+                                if (isAdminEmail && password == "admin123") {
                                     // ADMIN LOGIN
                                     jobViewModel.loginAdmin(email, password).onSuccess {
                                         println("DEBUG: Admin login successful, calling onLoginSuccess")
@@ -221,12 +214,16 @@ fun LoginScreen(
                                     }
                                 }
                             } else {
-                                // REGISTRATION
-                                jobViewModel.register(email, password, name).onSuccess {
-                                    println("DEBUG: Registration successful, calling onLoginSuccess")
-                                    onLoginSuccess()
-                                }.onFailure {
-                                    snackbarHostState.showSnackbar("Registration failed: ${it.message}")
+                                // REGISTRATION - Prevent admin registration
+                                if (isAdminEmail) {
+                                    snackbarHostState.showSnackbar("Cannot register admin account")
+                                } else {
+                                    jobViewModel.register(email, password, name).onSuccess {
+                                        println("DEBUG: Registration successful, calling onLoginSuccess")
+                                        onLoginSuccess()
+                                    }.onFailure {
+                                        snackbarHostState.showSnackbar("Registration failed: ${it.message}")
+                                    }
                                 }
                             }
                         }
@@ -245,7 +242,14 @@ fun LoginScreen(
                 if (authState == AuthState.LOADING) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text(if (isLoginMode) "Sign In" else "Create Account", fontSize = 16.sp)
+                    Text(
+                        if (isLoginMode) {
+                            if (isAdminEmail) "Sign In as Admin" else "Sign In"
+                        } else {
+                            "Create Account"
+                        },
+                        fontSize = 16.sp
+                    )
                 }
             }
 
@@ -282,7 +286,6 @@ fun LoginScreen(
                     )
                 }
             }
-
 
             // Forgot Password Dialog
             if (showForgotPasswordDialog) {
@@ -413,6 +416,5 @@ fun LoginScreen(
                 )
             }
         }
-
-        }
+    }
 }

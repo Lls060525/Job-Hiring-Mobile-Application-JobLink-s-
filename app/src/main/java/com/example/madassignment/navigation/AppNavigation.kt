@@ -1,5 +1,6 @@
 package com.example.madassignment.navigation
 
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -9,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.screens.*
+
 
 @Composable
 fun AppNavigation(
@@ -23,12 +25,14 @@ fun AppNavigation(
     val userProfile = userProfileState.value
     val isAdmin = isAdminState.value
 
+
     // Debug logging
     LaunchedEffect(currentUser, userProfile) {
         println("DEBUG: Current user = $currentUser")
         println("DEBUG: User profile = $userProfile")
         println("DEBUG: Should show profile setup = ${currentUser != null && userProfile == null}")
     }
+
 
     NavHost(
         navController = navController,
@@ -50,9 +54,14 @@ fun AppNavigation(
             )
         }
 
-        composable(Screen.Admin.route) {
-            AdminMenuScreen(jobViewModel = jobViewModel)
+
+        composable(route = Screen.Admin.route) {
+            AdminMenuScreen(
+                jobViewModel = jobViewModel,
+                navController = navController // Add this line
+            )
         }
+
 
         composable("profileSetup") {
             ProfileSetupScreen(
@@ -66,6 +75,7 @@ fun AppNavigation(
             )
         }
 
+
         composable(Screen.Home.route) {
             HomeScreen(jobViewModel = jobViewModel)
         }
@@ -78,5 +88,32 @@ fun AppNavigation(
         composable(Screen.Community.route) {
             CommunityScreen(jobViewModel = jobViewModel)
         }
+        composable("adminCommunityPosts") {
+            AdminCommunityPostsScreen(
+                jobViewModel = jobViewModel,
+                navController = navController
+            )
+        }
+
+        // Update AppNavigation.kt to include all admin routes
+        composable("adminCommunityPosts") {
+            AdminCommunityPostsScreen(
+                jobViewModel = jobViewModel,
+                navController = navController
+            )
+        }
+        composable("adminUserManagement") {
+            AdminUserManagementScreen(
+                jobViewModel = jobViewModel,
+                navController = navController
+            )
+        }
+        composable("adminJobListings") {
+            AdminJobListingsScreen(
+                jobViewModel = jobViewModel,
+                navController = navController
+            )
+        }
     }
 }
+
