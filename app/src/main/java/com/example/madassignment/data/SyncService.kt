@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 
 class SyncService(private val context: Context) {
     private val repository = AppRepository(context)
-    private val firebaseService = FirebaseService()
+    private val firebaseService = FirebaseService(context)
     private val scope = CoroutineScope(Dispatchers.IO)
 
 

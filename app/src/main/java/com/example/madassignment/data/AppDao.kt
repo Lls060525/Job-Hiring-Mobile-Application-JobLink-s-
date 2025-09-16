@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import java.util.Date
 
 @Dao
 interface AppDao {
@@ -32,6 +33,22 @@ interface AppDao {
 
     @Query("SELECT * FROM users")
     suspend fun getAllUsers(): List<User>
+
+    @Query("UPDATE jobs SET firestoreId = :firestoreId WHERE id = :jobId")
+    suspend fun updateJobFirestoreId(jobId: Int, firestoreId: String)
+
+    @Query("UPDATE users SET firestoreId = :firestoreId WHERE id = :userId")
+    suspend fun updateUserFirestoreId(userId: Int, firestoreId: String)
+
+    @Query("UPDATE user_profiles SET firestoreId = :firestoreId WHERE userId = :profileUserId")
+    suspend fun updateUserProfileFirestoreId(profileUserId: Int, firestoreId: String)
+
+    @Query("UPDATE community_posts SET lastUpdated = :lastUpdated WHERE id = :postId")
+    suspend fun updatePostLastUpdated(postId: String, lastUpdated: Date)
+
+    @Query("UPDATE jobs SET createdAt = :createdAt WHERE id = :jobId")
+    suspend fun updateJobCreatedAt(jobId: Int, createdAt: Date)
+
 
     // In AppDao.kt - Add these methods:
 

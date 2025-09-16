@@ -1,12 +1,23 @@
 package com.example.madassignment.components
 
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -21,7 +32,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.madassignment.data.CommunityPost
 import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.utils.TimeUtils
 import kotlinx.coroutines.delay
@@ -30,9 +40,10 @@ import java.util.concurrent.TimeUnit
 
 @Composable
 fun CommunityPost(
-    post: CommunityPost,
+    post: com.example.madassignment.data.CommunityPost,
     jobViewModel: JobViewModel,
     onLikeClick: () -> Unit,
+    onEditClick: (() -> Unit)? = null, // Add edit callback
     onLongPress: (() -> Unit)? = null,
     isLiked: Boolean,
     isOwnPost: Boolean,
@@ -87,6 +98,21 @@ fun CommunityPost(
                 color = if (isOwnPost) MaterialTheme.colorScheme.primary else Color.DarkGray,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
+
+            // Edit button for own posts
+            if (isOwnPost && onEditClick != null) {
+                IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Post",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
 
             // Company name
             Text(

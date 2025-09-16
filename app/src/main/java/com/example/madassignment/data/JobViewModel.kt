@@ -27,7 +27,7 @@ class JobViewModel(private val context: Context) : ViewModel() {
     var newJobSkills by mutableStateOf("")
 
     private val repository = AppRepository(context)
-    private val firebaseService = FirebaseService()
+    private val firebaseService = FirebaseService(context)
 
 
     private val _currentUser = MutableStateFlow<User?>(null)
@@ -108,8 +108,44 @@ class JobViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    // Add this method to JobViewModel.kt
+    suspend fun checkEmailExists(email: String): Boolean {
+        return try {
+            val user = repository.getUserByEmail(email)
+            user != null
+        } catch (e: Exception) {
+            false
+        }
+    }
 
 
+    // JobViewModel.kt - Add this method
+    fun updateCommunityPost(postId: String, newContent: String) {
+        viewModelScope.launch {
+            try {
+                val success = firebaseService.updatePostContent(postId, newContent)
+                if (success) {
+                    // Update local list immediately for better UX
+                    val index = allCommunityPosts.indexOfFirst { it.id == postId }
+                    if (index != -1) {
+                        val updatedPost = allCommunityPosts[index].copy(content = newContent)
+                        allCommunityPosts[index] = updatedPost
+
+                        // Also update in user's posts if it exists there
+                        val userIndex = communityPosts.indexOfFirst { it.id == postId }
+                        if (userIndex != -1) {
+                            communityPosts[userIndex] = updatedPost
+                        }
+                    }
+                    _errorMessage.value = "Post updated successfully"
+                } else {
+                    _errorMessage.value = "Failed to update post"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error updating post: ${e.message}"
+            }
+        }
+    }
 
     fun loadAllUsers() {
         viewModelScope.launch {

@@ -116,17 +116,6 @@ fun ProfileScreen(jobViewModel: JobViewModel) {
                 )
 
                 Row {
-                    // Logout Button - UPDATED to show dialog
-                    IconButton(
-                        onClick = { showLogoutDialog = true }, // Show confirmation dialog
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Logout",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
 
                     // Edit Button
                     IconButton(
@@ -161,6 +150,17 @@ fun ProfileScreen(jobViewModel: JobViewModel) {
                         Icon(
                             imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
                             contentDescription = if (isEditing) "Save" else "Edit",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showLogoutDialog = true }, // Show confirmation dialog
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }

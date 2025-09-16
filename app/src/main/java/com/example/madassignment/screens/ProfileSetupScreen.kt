@@ -29,7 +29,8 @@ fun ProfileSetupScreen(
     onSetupComplete: () -> Unit
 ) {
     // CHANGE: Set default empty values instead of pre-filled ones
-    var name by remember { mutableStateOf("") }
+    val currentUser by jobViewModel.currentUser.collectAsState()
+    var name by remember { mutableStateOf(currentUser?.name ?: "") }
     var age by remember { mutableStateOf("") }
     var aboutMe by remember { mutableStateOf("") }
     var skills by remember { mutableStateOf("") }
@@ -39,7 +40,7 @@ fun ProfileSetupScreen(
     val isNameValid = remember(name) { isValidName(name) || name.isEmpty() }
     val isAgeValid = remember(age) { isValidAge(age) || age.isEmpty() }
 
-    val currentUser by jobViewModel.currentUser.collectAsState()
+    
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 

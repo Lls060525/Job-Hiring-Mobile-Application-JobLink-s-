@@ -6,9 +6,11 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.tasks.await
+import android.content.Context
 import java.util.Date
 
-class FirebaseService {
+
+class FirebaseService(private val context: Context) {
     private val db: FirebaseFirestore = Firebase.firestore
     private val usersCollection = db.collection("users")
     private val profilesCollection = db.collection("user_profiles")
@@ -98,6 +100,22 @@ class FirebaseService {
         }
     }
 
+    suspend fun updatePostContent(postId: String, newContent: String): Boolean {
+        return try {
+            val postRef = postsCollection.document(postId)
+            postRef.update(
+                mapOf(
+                    "content" to newContent,
+                    "lastUpdated" to Date()
+                )
+            ).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     suspend fun togglePostLike(postId: String, userId: Int, userName: String): Boolean {
         return try {
             val postRef = postsCollection.document(postId)
@@ -167,6 +185,7 @@ class FirebaseService {
     // User operations
     suspend fun addUser(user: User): String {
         val userData = hashMapOf(
+            "id" to user.id, // ← ADD THIS LINE
             "email" to user.email,
             "password" to user.password,
             "name" to user.name,
@@ -174,6 +193,11 @@ class FirebaseService {
             "createdAt" to user.createdAt
         )
         val result = usersCollection.add(userData).await()
+
+        // Update local database with Firestore ID
+        val repository = AppRepository(context)
+        repository.updateUserFirestoreId(user.id, result.id)
+
         return result.id
     }
 
@@ -182,7 +206,7 @@ class FirebaseService {
             val querySnapshot = usersCollection.get().await()
             querySnapshot.documents.map { document ->
                 User(
-                    id = document.getLong("id")?.toInt() ?: 0,
+                    id = document.getLong("id")?.toInt() ?: 0, // Make sure this works
                     email = document.getString("email") ?: "",
                     password = document.getString("password") ?: "",
                     name = document.getString("name") ?: "",
@@ -195,7 +219,6 @@ class FirebaseService {
             emptyList()
         }
     }
-
     // UserProfile operations
     suspend fun addUserProfile(profile: UserProfile): String {
         val profileData = hashMapOf(

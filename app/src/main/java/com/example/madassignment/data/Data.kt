@@ -4,8 +4,6 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
 
-
-
 @Entity(tableName = "users")
 data class User(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -46,7 +44,8 @@ data class Job(
     val originalJobId: Int = 0,
     val requiredSkills: String = "",
     val company: String = "",
-    val firestoreId: String = "" // Add Firestore document ID
+    val firestoreId: String = "", // Add Firestore document ID
+    val createdAt: Date = Date() // Add createdAt field to match Firestore
 )
 
 @Entity(tableName = "community_posts")
@@ -60,7 +59,8 @@ data class CommunityPost(
     val likedBy: String = "",
     val userId: Int = 0,
     val createdAt: Date = Date(),
-    val isSynced: Boolean = false // Track sync status
+    val isSynced: Boolean = false, // Track sync status
+    val lastUpdated: Date = Date() // Add lastUpdated field to match Firestore
 )
 
 enum class AuthState {

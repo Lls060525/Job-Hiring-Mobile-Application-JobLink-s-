@@ -6,7 +6,7 @@ import android.util.Log
 class AppRepository(context: Context) {
 
     private val appDao = AppDatabase.getDatabase(context).appDao()
-    private val firebaseService = FirebaseService()
+    private val firebaseService = FirebaseService(context)
 
 
 
@@ -35,6 +35,31 @@ class AppRepository(context: Context) {
         } catch (e: Exception) {
             Log.e("AppRepository", "Error registering user: ${e.message}")
             -1
+        }
+    }
+
+
+    suspend fun updateJobFirestoreId(jobId: Int, firestoreId: String) {
+        try {
+            appDao.updateJobFirestoreId(jobId, firestoreId)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating job Firestore ID: ${e.message}")
+        }
+    }
+
+    suspend fun updateUserFirestoreId(userId: Int, firestoreId: String) {
+        try {
+            appDao.updateUserFirestoreId(userId, firestoreId)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating user Firestore ID: ${e.message}")
+        }
+    }
+
+    suspend fun updateUserProfileFirestoreId(userId: Int, firestoreId: String) {
+        try {
+            appDao.updateUserProfileFirestoreId(userId, firestoreId)
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error updating profile Firestore ID: ${e.message}")
         }
     }
 

@@ -57,6 +57,10 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
 
         result
     }
+
+    var showEditDialog by remember { mutableStateOf(false) }
+    var selectedPostForEdit by remember { mutableStateOf<CommunityPost?>(null) }
+
     LaunchedEffect(Unit) {
         jobViewModel.loadAllUsers()
     }
@@ -154,11 +158,20 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 items(filteredPosts) { post ->
                     val isOwnPost = currentUser != null && post.userId == currentUser!!.id
 
+// In CommunityScreen.kt - make sure you're passing the onEditClick parameter
                     CommunityPost(
                         post = post,
                         jobViewModel = jobViewModel,
                         onLikeClick = {
                             jobViewModel.togglePostLike(post.id)
+                        },
+                        onEditClick = if (isOwnPost) {
+                            {
+                                selectedPostForEdit = post
+                                showEditDialog = true
+                            }
+                        } else {
+                            null
                         },
                         onLongPress = if (isOwnPost) {
                             {
@@ -168,7 +181,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                         } else {
                             null
                         },
-                        isLiked = jobViewModel.isPostLiked(post.id), // This should return true/false correctly
+                        isLiked = jobViewModel.isPostLiked(post.id),
                         isOwnPost = isOwnPost,
                         onSeeMoreLikes = {
                             selectedPostForLikes = post.id
@@ -234,6 +247,25 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 scope.launch {
                     snackbarHostState.showSnackbar("Post deleted successfully")
                 }
+            }
+        )
+    }
+
+    // Edit Post Dialog
+    if (showEditDialog && selectedPostForEdit != null) {
+        EditPostDialog(
+            post = selectedPostForEdit!!,
+            onDismiss = {
+                showEditDialog = false
+                selectedPostForEdit = null
+            },
+            onPostUpdated = { newContent ->
+                jobViewModel.updateCommunityPost(selectedPostForEdit!!.id, newContent)
+                scope.launch {
+                    snackbarHostState.showSnackbar("Post updated successfully!")
+                }
+                showEditDialog = false
+                selectedPostForEdit = null
             }
         )
     }

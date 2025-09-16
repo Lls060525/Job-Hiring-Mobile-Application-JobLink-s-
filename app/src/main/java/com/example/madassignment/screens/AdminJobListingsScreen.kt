@@ -317,24 +317,7 @@ fun AdminJobListItem(job: com.example.madassignment.data.Job, onDelete: () -> Un
     }
 }
 
-@Composable
-fun StatCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Card(
-        modifier = Modifier
-            .width(100.dp)
-            .height(80.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = title, modifier = Modifier.size(24.dp))
-            Text(value, fontWeight = FontWeight.Bold)
-            Text(title, fontSize = 12.sp)
-        }
-    }
-}
+
 
 
 

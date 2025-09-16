@@ -1,5 +1,6 @@
 package com.example.madassignment.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +28,7 @@ import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.utils.ValidationUtils
 import kotlinx.coroutines.launch
 
+@SuppressLint("UnrememberedMutableState")
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -57,6 +59,25 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf("") }
+    var emailExistsError by remember { mutableStateOf(false) }
+
+    // Function to check if email already exists
+    fun checkEmailExists(email: String) {
+        if (!isLoginMode && email.isNotBlank() && ValidationUtils.isValidEmail(email)) {
+            scope.launch {
+                val existingUser = jobViewModel.currentUser.value?.let {
+                    // Use the repository to check if email exists
+                    // You'll need to add a method to check email existence
+                    // For now, we'll handle this in the registration flow
+                    null
+                }
+                emailExistsError = existingUser != null
+                if (emailExistsError) {
+                    emailError = "Email already registered"
+                }
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -113,6 +134,12 @@ fun LoginScreen(
                 onValueChange = {
                     email = it
                     emailError = ValidationUtils.getEmailErrorMessage(it)
+                    emailExistsError = false // Reset email exists error when typing
+
+                    // Check if email exists in real-time (optional)
+                    if (!isLoginMode && it.isNotBlank()) {
+                        checkEmailExists(it)
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -122,10 +149,12 @@ fun LoginScreen(
                     Icon(Icons.Default.Email, contentDescription = "Email")
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                isError = emailError.isNotBlank(),
+                isError = emailError.isNotBlank() || emailExistsError,
                 supportingText = {
                     if (emailError.isNotBlank()) {
                         Text(emailError)
+                    } else if (emailExistsError) {
+                        Text("Email already registered. Please use a different email or sign in.")
                     }
                 },
                 singleLine = true
@@ -190,7 +219,8 @@ fun LoginScreen(
 
                     val hasErrors = emailError.isNotBlank() ||
                             passwordError.isNotBlank() ||
-                            (!isLoginMode && nameError.isNotBlank())
+                            (!isLoginMode && nameError.isNotBlank()) ||
+                            emailExistsError
 
                     if (!hasErrors) {
                         scope.launch {
@@ -214,16 +244,25 @@ fun LoginScreen(
                                     }
                                 }
                             } else {
-                                // REGISTRATION - Prevent admin registration
+                                // REGISTRATION - Prevent admin registration and duplicate emails
                                 if (isAdminEmail) {
                                     snackbarHostState.showSnackbar("Cannot register admin account")
-                                } else {
-                                    jobViewModel.register(email, password, name).onSuccess {
-                                        println("DEBUG: Registration successful, calling onLoginSuccess")
-                                        onLoginSuccess()
-                                    }.onFailure {
-                                        snackbarHostState.showSnackbar("Registration failed: ${it.message}")
-                                    }
+                                    return@launch
+                                }
+
+                                // Additional check for duplicate email
+                                val emailExists = jobViewModel.checkEmailExists(email) // Call the correct ViewModel method
+                                if (emailExists) { // Check if the boolean is 'true'
+                                    emailExistsError = true
+                                    snackbarHostState.showSnackbar("Email already registered. Please use a different email.")
+                                    return@launch
+                                }
+
+                                jobViewModel.register(email, password, name).onSuccess {
+                                    println("DEBUG: Registration successful, calling onLoginSuccess")
+                                    onLoginSuccess()
+                                }.onFailure {
+                                    snackbarHostState.showSnackbar("Registration failed: ${it.message}")
                                 }
                             }
                         }
@@ -237,7 +276,8 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = email.isNotBlank() && password.isNotBlank() &&
-                        (isLoginMode || name.isNotBlank())
+                        (isLoginMode || name.isNotBlank()) &&
+                        !emailExistsError
             ) {
                 if (authState == AuthState.LOADING) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
@@ -260,6 +300,7 @@ fun LoginScreen(
                     emailError = ""
                     passwordError = ""
                     nameError = ""
+                    emailExistsError = false
                     // Reset password visibility when switching modes
                     passwordVisible = false
                 },
@@ -418,3 +459,4 @@ fun LoginScreen(
         }
     }
 }
+
