@@ -22,6 +22,9 @@ import com.example.madassignment.components.PurpleTopAppBar
 import com.example.madassignment.data.Job
 import com.example.madassignment.data.JobViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import android.util.Log
 
 @Composable
 fun HomeScreen(jobViewModel: JobViewModel) {
@@ -29,14 +32,26 @@ fun HomeScreen(jobViewModel: JobViewModel) {
     var selectedFilter by remember { mutableStateOf("All") }
     var selectedJob by remember { mutableStateOf<Job?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+
+    // FIXED: Collect states properly with initial values
     val userProfile by jobViewModel.userProfile.collectAsState()
+    val currentUser by jobViewModel.currentUser.collectAsState()
+    val allJobsState by jobViewModel.allAvailableJobs.collectAsState()
+    val savedJobs by jobViewModel.savedJobs.collectAsState()
+    val appliedJobs by jobViewModel.appliedJobs.collectAsState()
+    val jobStates by jobViewModel.jobStates.collectAsState() // ADDED: Direct access to job states
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val currentUser by jobViewModel.currentUser.collectAsState()
 
-    val allJobs = remember { jobViewModel.getAllAvailableJobs() }
-    val savedJobs by remember { derivedStateOf { jobViewModel.savedJobs } }
-    val appliedJobs by remember { derivedStateOf { jobViewModel.appliedJobs } }
+    // FIXED: Better data refresh management
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            Log.d("HomeScreen", "User logged in, refreshing data")
+            jobViewModel.refreshAllJobs()
+            jobViewModel.refreshUserData()
+        }
+    }
 
     // Get skill-based recommendations
     var skillBasedJobs by remember { mutableStateOf<List<Job>>(emptyList()) }
@@ -54,24 +69,50 @@ fun HomeScreen(jobViewModel: JobViewModel) {
         jobViewModel.sampleRecommendedJobs
     }
 
-
-    val filteredJobs = remember(searchQuery, selectedFilter, allJobs, savedJobs, appliedJobs) {
+    // FIXED: Improved job filtering logic with better state checking
+    val filteredJobs = remember(searchQuery, selectedFilter, allJobsState, savedJobs, appliedJobs, jobStates) {
         var result = if (searchQuery.isBlank()) {
-            allJobs
+            allJobsState
         } else {
-            allJobs.filter { job ->
+            allJobsState.filter { job ->
                 job.title.contains(searchQuery, ignoreCase = true) ||
                         job.subtitle.contains(searchQuery, ignoreCase = true) ||
                         job.type.contains(searchQuery, ignoreCase = true) ||
-                        job.location.contains(searchQuery, ignoreCase = true)
+                        job.location.contains(searchQuery, ignoreCase = true) ||
+                        job.company.contains(searchQuery, ignoreCase = true)
             }
         }
 
-        if (selectedFilter == "New") {
-            result = result.filter { job -> jobViewModel.sampleNewJobs.any { it.id == job.id } }
+        when (selectedFilter) {
+            "New" -> result.filter { job ->
+                jobViewModel.sampleNewJobs.any { sampleJob -> sampleJob.id == job.id }
+            }
+            "Active" -> result.filter { job ->
+                job.originalJobId > 10000 // Employer jobs
+            }
+            "Archived" -> result.filter { job ->
+                job.originalJobId <= 10000 // Sample jobs
+            }
+            "Saved" -> result.filter { job ->
+                // Check both job states and saved jobs list
+                val stateResult = jobStates[job.originalJobId]?.first ?: false
+                val listResult = savedJobs.any { savedJob ->
+                    savedJob.originalJobId == job.originalJobId ||
+                            savedJob.id == job.id
+                }
+                stateResult || listResult
+            }
+            "Applied" -> result.filter { job ->
+                // Check both job states and applied jobs list
+                val stateResult = jobStates[job.originalJobId]?.second ?: false
+                val listResult = appliedJobs.any { appliedJob ->
+                    appliedJob.originalJobId == job.originalJobId ||
+                            appliedJob.id == job.id
+                }
+                stateResult || listResult
+            }
+            else -> result // "All"
         }
-
-        result
     }
 
     Scaffold(
@@ -106,11 +147,13 @@ fun HomeScreen(jobViewModel: JobViewModel) {
                 )
             )
 
-            // Filter Buttons
+            // Filter Buttons with horizontal scroll
+            val scrollState = rememberScrollState()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .horizontalScroll(scrollState),
                 horizontalArrangement = Arrangement.Start
             ) {
                 FilterButton(
@@ -126,9 +169,41 @@ fun HomeScreen(jobViewModel: JobViewModel) {
                     isSelected = selectedFilter == "New",
                     onClick = { selectedFilter = "New" }
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FilterButton(
+                    text = "Active",
+                    isSelected = selectedFilter == "Active",
+                    onClick = { selectedFilter = "Active" }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FilterButton(
+                    text = "Archived",
+                    isSelected = selectedFilter == "Archived",
+                    onClick = { selectedFilter = "Archived" }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FilterButton(
+                    text = "Saved",
+                    isSelected = selectedFilter == "Saved",
+                    onClick = { selectedFilter = "Saved" }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FilterButton(
+                    text = "Applied",
+                    isSelected = selectedFilter == "Applied",
+                    onClick = { selectedFilter = "Applied" }
+                )
             }
 
-            // Title
+            // Title with improved counts
             Text(
                 text = "Start your job search",
                 fontSize = 24.sp,
@@ -138,7 +213,14 @@ fun HomeScreen(jobViewModel: JobViewModel) {
 
             if (searchQuery.isBlank()) {
                 Text(
-                    text = if (selectedFilter == "New") "New Jobs" else "Recommended Jobs",
+                    text = when (selectedFilter) {
+                        "New" -> "New Jobs (${filteredJobs.size})"
+                        "Active" -> "Active Jobs (${filteredJobs.size})"
+                        "Archived" -> "Archived Jobs (${filteredJobs.size})"
+                        "Saved" -> "Saved Jobs (${filteredJobs.size})"
+                        "Applied" -> "Applied Jobs (${filteredJobs.size})"
+                        else -> "All Available Jobs (${filteredJobs.size})"
+                    },
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -153,51 +235,34 @@ fun HomeScreen(jobViewModel: JobViewModel) {
             }
 
             // No results message
-            if (filteredJobs.isEmpty() && searchQuery.isNotBlank()) {
-                Text(
-                    text = "No jobs found for \"$searchQuery\"",
-                    fontSize = 16.sp,
-                    color = Color.Gray,
+            if (filteredJobs.isEmpty()) {
+                Box(
                     modifier = Modifier
-                        .padding(vertical = 32.dp)
                         .fillMaxWidth()
-                )
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = when {
+                            searchQuery.isNotBlank() -> "No jobs found for \"$searchQuery\""
+                            selectedFilter == "Saved" -> "You haven't saved any jobs yet"
+                            selectedFilter == "Applied" -> "You haven't applied to any jobs yet"
+                            else -> "No jobs available"
+                        },
+                        fontSize = 16.sp,
+                        color = Color.Gray
+                    )
+                }
             }
 
-            // Job Listings
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
+            LazyColumn {
                 items(filteredJobs) { job ->
-                    val isSaved = savedJobs.any { it.originalJobId == job.originalJobId }
-                    val isApplied = appliedJobs.any { it.originalJobId == job.originalJobId }
-
                     JobCard(
                         job = job,
-                        isSaved = isSaved,
-                        isApplied = isApplied,
+                        jobViewModel = jobViewModel,
                         onClick = {
                             selectedJob = job
                             showDialog = true
-                        },
-                        onUnsave = {
-                            if (isSaved) {
-                                jobViewModel.removeSavedJob(job)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Job removed from saved list")
-                                }
-                            }
-                        },
-                        onUnapply = {
-                            if (isApplied) {
-                                jobViewModel.removeAppliedJob(job)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Job application cancelled")
-                                }
-                            }
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -206,11 +271,9 @@ fun HomeScreen(jobViewModel: JobViewModel) {
         }
     }
 
-    // Show Job Dialog
+    // FIXED: Show Job Dialog with better state handling
     if (showDialog && selectedJob != null) {
         val job = selectedJob!!
-        val isSaved = savedJobs.any { it.originalJobId == job.id }
-        val isApplied = appliedJobs.any { it.originalJobId == job.id }
 
         JobDialog(
             job = job,
@@ -225,16 +288,16 @@ fun HomeScreen(jobViewModel: JobViewModel) {
                 }
             },
             onSave = {
+                // State is automatically updated in JobViewModel
+                val isSaved = jobStates[job.originalJobId]?.first ?: false
                 scope.launch {
                     if (isSaved) {
-                        snackbarHostState.showSnackbar("Job removed from saved!")
-                    } else {
                         snackbarHostState.showSnackbar("Job saved successfully!")
+                    } else {
+                        snackbarHostState.showSnackbar("Job removed from saved!")
                     }
                 }
-            },
-            isSaved = isSaved,
-            isApplied = isApplied
+            }
         )
     }
 }

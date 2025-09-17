@@ -1,9 +1,13 @@
+// LoginScreen.kt
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -27,6 +31,7 @@ import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.utils.ValidationUtils
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -41,7 +46,7 @@ fun LoginScreen(
     val authState by jobViewModel.authState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
+    val scrollState = rememberScrollState()
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var forgotPasswordEmail by remember { mutableStateOf("") }
@@ -54,23 +59,49 @@ fun LoginScreen(
     var passwordError by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf("") }
 
+    // Admin detection
+    val isAdminEmail by derivedStateOf {
+        email.equals("admin@gmail.com", ignoreCase = true)
+    }
+
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = { navController.popBackStack() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back to Welcome",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(scrollState)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
-
-
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Logo",
-                modifier = Modifier.height(200.dp).width(300.dp)
+                modifier = Modifier
+                    .height(200.dp)
+                    .width(300.dp)
+                    .padding(bottom = 32.dp)
             )
 
             Text(
@@ -141,16 +172,13 @@ fun LoginScreen(
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = "Password")
                 },
-                // Add visibility toggle functionality
                 trailingIcon = {
                     IconButton(
                         onClick = { passwordVisible = !passwordVisible }
                     ) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Default.Info
-                            else Icons.Default.Info,
-                            contentDescription = if (passwordVisible) "Hide password"
-                            else "Show password"
+                            imageVector = Icons.Default.Info,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password"
                         )
                     }
                 },
@@ -183,11 +211,22 @@ fun LoginScreen(
                     if (!hasErrors) {
                         scope.launch {
                             if (isLoginMode) {
-                                jobViewModel.login(email, password).onSuccess {
-                                    println("DEBUG: Login successful, calling onLoginSuccess")
-                                    onLoginSuccess()
-                                }.onFailure {
-                                    snackbarHostState.showSnackbar("Login failed: ${it.message}")
+                                // ADMIN LOGIN CHECK
+                                if (isAdminEmail && password == "admin123") {
+                                    jobViewModel.loginAdmin(email, password).onSuccess {
+                                        println("DEBUG: Admin login successful, calling onLoginSuccess")
+                                        onLoginSuccess()
+                                    }.onFailure {
+                                        snackbarHostState.showSnackbar("Admin login failed: ${it.message}")
+                                    }
+                                } else {
+                                    // REGULAR USER LOGIN
+                                    jobViewModel.login(email, password).onSuccess {
+                                        println("DEBUG: Login successful, calling onLoginSuccess")
+                                        onLoginSuccess()
+                                    }.onFailure {
+                                        snackbarHostState.showSnackbar("Login failed: ${it.message}")
+                                    }
                                 }
                             } else {
                                 jobViewModel.register(email, password, name).onSuccess {
@@ -242,7 +281,7 @@ fun LoginScreen(
                         showForgotPasswordDialog = true
                         retrievedPassword = null // Reset when opening dialog
                     },
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
                 ) {
                     Text(
                         text = "Forgot Password?",
@@ -251,7 +290,7 @@ fun LoginScreen(
                 }
             }
 
-            // Forgot Password Dialog
+            // Forgot Password Dialog (unchanged)
             if (showForgotPasswordDialog) {
                 AlertDialog(
                     onDismissRequest = {
@@ -380,6 +419,5 @@ fun LoginScreen(
                 )
             }
         }
-
-        }
+    }
 }

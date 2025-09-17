@@ -1,4 +1,4 @@
-// ProfileSetupScreen.kt
+// EmployerProfileSetupScreen.kt
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.layout.*
@@ -6,9 +6,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,40 +19,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.example.madassignment.components.SkillsSelectionDialog
-import com.example.madassignment.data.JobViewModel
-import com.example.madassignment.data.UserProfile
-import com.example.madassignment.data.skillsToString
+import com.example.madassignment.data.EmployerProfile
+import com.example.madassignment.data.EmployerViewModel
 import kotlinx.coroutines.launch
+import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSetupScreen(
+fun EmployerProfileSetupScreen(
     navController: NavController,
-    jobViewModel: JobViewModel,
+    employerViewModel: EmployerViewModel,
     onSetupComplete: () -> Unit
 ) {
-    // CHANGE: Set default empty values instead of pre-filled ones
-    var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
-    var aboutMe by remember { mutableStateOf("") }
-    var skills by remember { mutableStateOf("") }
-    var company by remember { mutableStateOf("") }
-    var showSkillsDialog by remember { mutableStateOf(false) }
+    var companyName by remember { mutableStateOf("") }
+    var industry by remember { mutableStateOf("") }
+    var companySize by remember { mutableStateOf("") }
+    var aboutCompany by remember { mutableStateOf("") }
+    var website by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var contactEmail by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var showQuitDialog by remember { mutableStateOf(false) } // Added quit dialog state
 
-    val isNameValid = remember(name) { isValidName(name) || name.isEmpty() }
-    val isAgeValid = remember(age) { isValidAge(age) || age.isEmpty() }
-
-    val currentUser by jobViewModel.currentUser.collectAsState()
+    val currentEmployer by employerViewModel.currentEmployer.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Setup Your Profile") },
+                title = { Text("Setup Your Company Profile") },
                 navigationIcon = {
                     IconButton(
                         onClick = {
@@ -70,7 +67,7 @@ fun ProfileSetupScreen(
                     // Optional: Add a skip button on the right side
                     TextButton(
                         onClick = {
-                            // Allow users to skip profile setup
+                            // Allow employers to skip profile setup
                             onSetupComplete()
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
@@ -97,132 +94,153 @@ fun ProfileSetupScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Complete Your Profile",
+                text = "Complete Your Company Profile",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
             Text(
-                text = "Help us recommend the best jobs for you based on your skills and experience",
+                text = "Tell job seekers about your company to attract the best talent",
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 32.dp)
             )
 
-            // Name Input
+            // Company Name Input
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = companyName,
+                onValueChange = { companyName = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                label = { Text("Full Name *") },
-                placeholder = { Text("Enter your full name") },
-                singleLine = true,
-                isError = !isNameValid && name.isNotBlank(),
-                supportingText = {
-                    if (!isNameValid && name.isNotBlank()) {
-                        Text(
-                            text = "Please enter a valid name (letters only, min 2 characters)",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            )
-
-            // Age Input
-            OutlinedTextField(
-                value = age,
-                onValueChange = { age = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                label = { Text("Age *") },
-                placeholder = { Text("Enter your age") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                isError = !isAgeValid && age.isNotBlank(),
-                supportingText = {
-                    if (!isAgeValid && age.isNotBlank()) {
-                        Text(
-                            text = "Please enter a valid age (1-150)",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            )
-
-            // Company Input
-            OutlinedTextField(
-                value = company,
-                onValueChange = { company = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                label = { Text("Company") },
-                placeholder = { Text("Enter your company name (optional)") },
+                label = { Text("Company Name *") },
+                placeholder = { Text("Enter your company name") },
+                leadingIcon = {
+                    Text("🏢", modifier = Modifier.padding(start = 16.dp, end = 8.dp))
+                },
                 singleLine = true
             )
 
-            // About Me Input
+            // Industry Input
             OutlinedTextField(
-                value = aboutMe,
-                onValueChange = { aboutMe = it },
+                value = industry,
+                onValueChange = { industry = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                label = { Text("About Me") },
-                placeholder = { Text("Tell us about yourself...") },
-                maxLines = 3
+                label = { Text("Industry *") },
+                placeholder = { Text("e.g., Technology, Finance, Healthcare") },
+                singleLine = true
             )
 
-            // Skills Input
+            // Company Size Input
             OutlinedTextField(
-                value = skills,
-                onValueChange = { skills = it },
+                value = companySize,
+                onValueChange = { companySize = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                label = { Text("Company Size *") },
+                placeholder = { Text("e.g., 1-10, 11-50, 51-200, 201-500, 500+") },
+                singleLine = true
+            )
+
+            // Location Input
+            OutlinedTextField(
+                value = location,
+                onValueChange = { location = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                label = { Text("Location *") },
+                placeholder = { Text("e.g., Kuala Lumpur, Malaysia") },
+                leadingIcon = {
+                    Icon(Icons.Default.LocationOn, contentDescription = "Location")
+                },
+                singleLine = true
+            )
+
+            // Website Input
+            OutlinedTextField(
+                value = website,
+                onValueChange = { website = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                label = { Text("Website") },
+                placeholder = { Text("https://yourcompany.com") },
+                leadingIcon = {
+                    Text("🌐", modifier = Modifier.padding(start = 16.dp, end = 8.dp))
+                },
+                singleLine = true
+            )
+
+            // Contact Email Input
+            OutlinedTextField(
+                value = contactEmail,
+                onValueChange = { contactEmail = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                label = { Text("Contact Email *") },
+                placeholder = { Text("contact@yourcompany.com") },
+                leadingIcon = {
+                    Icon(Icons.Default.Email, contentDescription = "Contact Email")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                singleLine = true
+            )
+
+            // Phone Input
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                label = { Text("Phone") },
+                placeholder = { Text("+60 12 345 6789") },
+                leadingIcon = {
+                    Icon(Icons.Default.Phone, contentDescription = "Phone")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                singleLine = true
+            )
+
+            // About Company Input
+            OutlinedTextField(
+                value = aboutCompany,
+                onValueChange = { aboutCompany = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 32.dp),
-                label = { Text("Skills (Comma separated)") },
-                placeholder = { Text("e.g., Python, Java, React, Marketing") },
-                maxLines = 3
+                label = { Text("About Company *") },
+                placeholder = { Text("Describe your company culture, mission, and values...") },
+                maxLines = 4
             )
-
-            Button(
-                onClick = { showSkillsDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Text("Select Skills")
-            }
-
-            if (showSkillsDialog) {
-                SkillsSelectionDialog(
-                    currentSkills = emptyList(),
-                    onDismiss = { showSkillsDialog = false },
-                    onSkillsSelected = { newSkills ->
-                        skills = skillsToString(newSkills)
-                    }
-                )
-            }
 
             // Setup Button
             Button(
                 onClick = {
-                    if (isValidName(name) && isValidAge(age)) {
-                        currentUser?.let { user ->
-                            val profile = UserProfile(
-                                userId = user.id,
-                                name = name,
-                                age = age,
-                                aboutMe = aboutMe,
-                                skills = skills,
-                                company = company
+                    if (companyName.isNotBlank() && industry.isNotBlank() &&
+                        companySize.isNotBlank() && location.isNotBlank() &&
+                        contactEmail.isNotBlank() && aboutCompany.isNotBlank()) {
+
+                        currentEmployer?.let { employer ->
+                            val profile = EmployerProfile(
+                                employerId = employer.id,
+                                companyName = companyName,
+                                industry = industry,
+                                companySize = companySize,
+                                aboutCompany = aboutCompany,
+                                website = website,
+                                location = location,
+                                contactEmail = contactEmail,
+                                phone = phone
                             )
                             scope.launch {
-                                jobViewModel.updateUserProfile(profile).onSuccess {
+                                employerViewModel.updateEmployerProfile(profile).onSuccess {
                                     snackbarHostState.showSnackbar("Profile setup complete!")
                                     onSetupComplete()
                                 }.onFailure {
@@ -232,14 +250,16 @@ fun ProfileSetupScreen(
                         }
                     } else {
                         scope.launch {
-                            snackbarHostState.showSnackbar("Please fix validation errors before continuing")
+                            snackbarHostState.showSnackbar("Please fill in all required fields")
                         }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = name.isNotBlank() && age.isNotBlank() && isValidName(name) && isValidAge(age)
+                enabled = companyName.isNotBlank() && industry.isNotBlank() &&
+                        companySize.isNotBlank() && location.isNotBlank() &&
+                        contactEmail.isNotBlank() && aboutCompany.isNotBlank()
             ) {
                 Text("Complete Setup", fontSize = 16.sp)
             }
@@ -247,7 +267,7 @@ fun ProfileSetupScreen(
             // Skip Button for optional setup
             TextButton(
                 onClick = {
-                    // Allow users to skip profile setup
+                    // Allow employers to skip profile setup
                     onSetupComplete()
                 },
                 modifier = Modifier.padding(top = 16.dp)
@@ -274,7 +294,7 @@ fun ProfileSetupScreen(
                 Button(
                     onClick = {
                         showQuitDialog = false
-                        jobViewModel.logout()
+                        employerViewModel.logout()
                         // Navigate back to welcome screen, clearing the back stack
                         navController.navigate("welcome") {
                             popUpTo(0) { inclusive = true }

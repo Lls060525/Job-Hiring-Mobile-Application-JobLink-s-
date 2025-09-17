@@ -3,6 +3,31 @@ package com.example.madassignment.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
+// Add to Data.kt
+@Entity(tableName = "employers")
+data class Employer(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val email: String,
+    val password: String,
+    val companyName: String,
+    val createdAt: Date = Date()
+)
+
+@Entity(tableName = "employer_profiles")
+data class EmployerProfile(
+    @PrimaryKey val employerId: Int,
+    val companyName: String,
+    val industry: String,
+    val companySize: String,
+    val aboutCompany: String,
+    val website: String = "",
+    val location: String = "",
+    val contactEmail: String = "",
+    val phone: String = "",
+    val profileImageUri: String? = null,
+    val lastUpdated: Date = Date(),
+    val isSetupComplete: Boolean = false
+)
 
 @Entity(tableName = "users")
 data class User(
@@ -10,7 +35,7 @@ data class User(
     val email: String,
     val password: String,
     val name: String,
-    val createdAt: Date = Date()
+    val isAdmin: Boolean = false // Add this property
 )
 
 

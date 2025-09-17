@@ -1,8 +1,8 @@
 package com.example.madassignment.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.Modifier
@@ -10,9 +10,10 @@ import com.example.madassignment.components.BottomNavigationBar
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import com.example.madassignment.data.JobViewModel
+import com.example.madassignment.data.EmployerViewModel
 
 @Composable
-fun JobApp(jobViewModel: JobViewModel) {
+fun JobApp(jobViewModel: JobViewModel, employerViewModel: EmployerViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -26,7 +27,9 @@ fun JobApp(jobViewModel: JobViewModel) {
 
     val showBottomBar = currentUser != null &&
             currentRoute != "auth" &&
-            currentRoute != "profileSetup"
+            currentRoute != "profileSetup" &&
+            currentRoute != "welcome" &&
+            currentRoute != "employer_welcome"
 
     Scaffold(
         bottomBar = {
@@ -38,6 +41,7 @@ fun JobApp(jobViewModel: JobViewModel) {
         AppNavigation(
             navController = navController,
             jobViewModel = jobViewModel,
+            employerViewModel = employerViewModel,
             modifier = Modifier.padding(innerPadding)
         )
     }
