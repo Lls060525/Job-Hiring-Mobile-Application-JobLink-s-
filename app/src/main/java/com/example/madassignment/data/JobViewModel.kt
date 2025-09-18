@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.example.madassignment.utils.ValidationUtils
+import kotlinx.coroutines.delay
 
 class JobViewModel(context: Context) : ViewModel() {
     private val repository = AppRepository(context)
@@ -59,6 +60,9 @@ class JobViewModel(context: Context) : ViewModel() {
     private val _showAddJobDialog = MutableStateFlow(false)
     val showAddJobDialog: StateFlow<Boolean> = _showAddJobDialog
 
+    private val _registeredName = MutableStateFlow<String?>(null)
+    val registeredName: StateFlow<String?> = _registeredName
+
     // Form fields for adding new jobs
     var newJobTitle by mutableStateOf("")
     var newJobCompany by mutableStateOf("")
@@ -84,6 +88,28 @@ class JobViewModel(context: Context) : ViewModel() {
             repository.createDefaultAdmin()
         }
     }
+
+    fun setRegisteredName(name: String) {
+        _registeredName.value = name
+    }
+
+    fun clearRegisteredName() {
+        _registeredName.value = null
+    }
+
+    fun setupFirebaseSync() {
+        viewModelScope.launch {
+            // Initial sync
+            repository.syncAllDataToFirebase()
+
+            // Set up periodic sync (every 5 minutes)
+            while (true) {
+                delay(5 * 60 * 1000) // 5 minutes
+                repository.syncAllDataToFirebase()
+            }
+        }
+    }
+
     // Add the deletePost function here, before it's used
     fun deletePost(postId: String) {
         viewModelScope.launch {
@@ -105,19 +131,22 @@ class JobViewModel(context: Context) : ViewModel() {
 // ADMIN METHODS
     suspend fun loginAdmin(email: String, password: String): Result<Boolean> {
         return try {
-            // Check against your user database
-            val users = firebaseService.getAllUsers() // or however you get users
-            val admin = users.find { user ->
-                user.email == email && user.password == password && user.isAdmin
-            }
+            // FIX: Check against LOCAL database, not Firebase
+            val admin = repository.getUserByEmail(email)
 
-            if (admin != null) {
+            Log.d("AdminLogin", "Found user: ${admin?.email}, isAdmin: ${admin?.isAdmin}")
+
+            if (admin != null && admin.password == password && admin.isAdmin) {
                 _currentUser.value = admin
+                loadUserProfile(admin.id) // Load profile if exists
+                Log.d("AdminLogin", "Admin login successful")
                 Result.success(true)
             } else {
+                Log.d("AdminLogin", "Login failed - admin: $admin, password match: ${admin?.password == password}, isAdmin: ${admin?.isAdmin}")
                 Result.failure(Exception("Invalid admin credentials or user is not an admin"))
             }
         } catch (e: Exception) {
+            Log.e("AdminLogin", "Error: ${e.message}")
             Result.failure(Exception("Login failed: ${e.message}"))
         }
     }

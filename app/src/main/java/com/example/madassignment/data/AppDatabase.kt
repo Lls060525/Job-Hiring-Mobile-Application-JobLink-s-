@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [User::class, Job::class, CommunityPost::class, UserProfile::class, Employer::class, EmployerProfile::class,EmployerJobPost::class,EmployeeJobPost::class],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -25,11 +25,10 @@ class FirebaseService(private val context: Context) {
             "name" to user.name,
             "isAdmin" to user.isAdmin,
 
-        )
+            )
         val result = usersCollection.add(userData).await()
 
-        // Note: Update your AppRepository class to include this method if needed
-        // repository.updateUserFirestoreId(user.id, result.id)
+
 
         return result.id
     }
@@ -51,6 +50,8 @@ class FirebaseService(private val context: Context) {
             emptyList()
         }
     }
+
+
 
     suspend fun deleteUser(userId: String): Boolean {
         return try {

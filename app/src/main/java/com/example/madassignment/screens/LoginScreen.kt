@@ -230,7 +230,8 @@ fun LoginScreen(
                                 }
                             } else {
                                 jobViewModel.register(email, password, name).onSuccess {
-                                    println("DEBUG: Registration successful, calling onLoginSuccess")
+                                    // Store the registered name in ViewModel
+                                    jobViewModel.setRegisteredName(name)
                                     onLoginSuccess()
                                 }.onFailure {
                                     snackbarHostState.showSnackbar("Registration failed: ${it.message}")

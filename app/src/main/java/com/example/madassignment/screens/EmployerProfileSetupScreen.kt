@@ -49,32 +49,7 @@ fun EmployerProfileSetupScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Setup Your Company Profile") },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            // Show quit confirmation dialog instead of just going back
-                            showQuitDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp, // Changed to exit icon
-                            contentDescription = "Quit Setup",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    // Optional: Add a skip button on the right side
-                    TextButton(
-                        onClick = {
-                            // Allow employers to skip profile setup
-                            onSetupComplete()
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("Skip")
-                    }
-                },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = Color.White,

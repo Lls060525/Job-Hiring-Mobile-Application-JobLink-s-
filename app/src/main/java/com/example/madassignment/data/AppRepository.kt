@@ -157,21 +157,27 @@ class AppRepository(context: Context) {
     }
     suspend fun createDefaultAdmin() {
         try {
-            val existingAdmin = getUserByEmail("admin@jobapp.com")
+            val existingAdmin = getUserByEmail("admin@gmail.com")
+            Log.d("AppRepository", "Admin check: ${existingAdmin?.email} - isAdmin: ${existingAdmin?.isAdmin}")
+
             if (existingAdmin == null) {
                 val adminUser = User(
-                    email = "admin@jobapp.com",
-                    password = "admin123",
+                    email = "admin@gmail.com",
+                    password = "admin123", // Make sure this matches what you're typing
                     name = "System Admin",
-                    isAdmin = true
+                    isAdmin = true // This MUST be true
                 )
                 val adminId = appDao.insertUser(adminUser)
                 Log.d("AppRepository", "Created default admin with ID: $adminId")
 
-                // Create admin profile with correct parameters
+                // Add debug logging
+                val insertedAdmin = getUserById(adminId.toInt())
+                Log.d("AppRepository", "Inserted admin: ${insertedAdmin?.email}, isAdmin: ${insertedAdmin?.isAdmin}")
+
+                // Create admin profile
                 val adminProfile = UserProfile(
                     userId = adminId.toInt(),
-                    name = "System Admin",
+                    name = "System Administrator",
                     age = "30",
                     aboutMe = "System Administrator",
                     skills = "Administration",
@@ -179,9 +185,9 @@ class AppRepository(context: Context) {
                     isSetupComplete = true
                 )
                 appDao.insertUserProfile(adminProfile)
-                Log.d("AppRepository", "Created default admin profile")
+                Log.d("AppRepository", "Created admin profile")
             } else {
-                Log.d("AppRepository", "Default admin already exists")
+                Log.d("AppRepository", "Default admin exists: ${existingAdmin.email}, isAdmin: ${existingAdmin.isAdmin}")
             }
         } catch (e: Exception) {
             Log.e("AppRepository", "Error creating default admin: ${e.message}")
@@ -330,6 +336,15 @@ class AppRepository(context: Context) {
         return try {
             val user = User(email = email, password = password, name = name)
             val userId = appDao.insertUser(user)
+
+            // Sync with Firebase
+            try {
+                val firebaseUser = user.copy(id = userId.toInt())
+                firebaseService.addUser(firebaseUser)
+            } catch (e: Exception) {
+                Log.w("AppRepository", "Firebase user sync failed: ${e.message}")
+            }
+
             Log.d("AppRepository", "Registered user: $email with ID: $userId")
             userId
         } catch (e: Exception) {
@@ -371,6 +386,58 @@ class AppRepository(context: Context) {
         }
     }
 
+    suspend fun syncAllDataToFirebase(): Boolean {
+        return try {
+            // Sync users
+            val users = appDao.getAllUsers()
+            users.forEach { user ->
+                try {
+                    firebaseService.addUser(user)
+                } catch (e: Exception) {
+                    Log.w("AppRepository", "Failed to sync user ${user.id}: ${e.message}")
+                }
+            }
+
+            // Sync user profiles
+            users.forEach { user ->
+                val profile = appDao.getUserProfile(user.id)
+                profile?.let {
+                    try {
+                        firebaseService.addUserProfile(it)
+                    } catch (e: Exception) {
+                        Log.w("AppRepository", "Failed to sync profile for user ${user.id}: ${e.message}")
+                    }
+                }
+            }
+
+            // Sync jobs
+            val jobs = appDao.getAllSystemJobs()
+            jobs.forEach { job ->
+                try {
+                    firebaseService.addJobToFirestore(job)
+                } catch (e: Exception) {
+                    Log.w("AppRepository", "Failed to sync job ${job.id}: ${e.message}")
+                }
+            }
+
+            // Sync community posts
+            val posts = appDao.getAllCommunityPosts()
+            posts.forEach { post ->
+                try {
+                    // Convert Room post to Firebase format if needed
+                    firebaseService.addPost(post)
+                } catch (e: Exception) {
+                    Log.w("AppRepository", "Failed to sync post ${post.id}: ${e.message}")
+                }
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e("AppRepository", "Error syncing all data to Firebase: ${e.message}")
+            false
+        }
+    }
+
     // User profile operations
     suspend fun saveUserProfile(profile: UserProfile): Long {
         return try {
@@ -381,6 +448,14 @@ class AppRepository(context: Context) {
             } else {
                 appDao.insertUserProfile(profile)
             }
+
+            // Sync with Firebase
+            try {
+                firebaseService.addUserProfile(profile)
+            } catch (e: Exception) {
+                Log.w("AppRepository", "Firebase profile sync failed: ${e.message}")
+            }
+
             Log.d("AppRepository", "Saved user profile for userId: ${profile.userId}, result: $result")
             result
         } catch (e: Exception) {
@@ -1212,4 +1287,3 @@ fun getNewJobs(): List<Job> {
         )
     )
 }
-

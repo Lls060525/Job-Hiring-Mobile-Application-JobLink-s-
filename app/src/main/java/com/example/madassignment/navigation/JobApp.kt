@@ -20,16 +20,33 @@ fun JobApp(jobViewModel: JobViewModel, employerViewModel: EmployerViewModel) {
     val currentUserState = jobViewModel.currentUser.collectAsState()
     val currentUser = currentUserState.value
 
+    // Define admin routes where bottom bar should be hidden
+    val adminRoutes = listOf(
+        "adminDashboard",
+        Screen.AdminUserManagement.route,
+        Screen.AdminJobListings.route,
+        Screen.AdminCommunityPosts.route,
+        "adminLogin"
+    )
+
+    // Define other routes where bottom bar should be hidden
+    val noBottomBarRoutes = listOf(
+        "auth",
+        "profileSetup",
+        "welcome",
+        "employer_welcome",
+        "employer_auth",
+        "employer_profile_setup"
+    ) + adminRoutes
+
+    val showBottomBar = currentUser != null &&
+            currentRoute != null &&
+            currentRoute !in noBottomBarRoutes
+
     // Debug logging
     println("DEBUG: Current user = $currentUser")
     println("DEBUG: Current route = $currentRoute")
-    println("DEBUG: Show bottom bar = ${currentUser != null && currentRoute != "auth"}")
-
-    val showBottomBar = currentUser != null &&
-            currentRoute != "auth" &&
-            currentRoute != "profileSetup" &&
-            currentRoute != "welcome" &&
-            currentRoute != "employer_welcome"
+    println("DEBUG: Show bottom bar = $showBottomBar")
 
     Scaffold(
         bottomBar = {

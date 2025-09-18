@@ -34,14 +34,20 @@ fun AppNavigation(
     // Determine start destination based on authentication state
     val startDestination = when {
         currentUser != null -> {
-            if (userProfile?.isSetupComplete == true) Screen.Home.route else "profileSetup"
+            if (currentUser.isAdmin) {
+                // ADMIN USERS: Skip profile setup, go directly to admin menu
+                "adminDashboard"
+            } else if (userProfile?.isSetupComplete == true) {
+                Screen.Home.route
+            } else {
+                "profileSetup"
+            }
         }
         currentEmployer != null -> {
             if (employerProfile?.isSetupComplete == true) "employer_dashboard" else "employer_profile_setup"
         }
         else -> "welcome"
     }
-
     // Debug logging
     LaunchedEffect(currentUser, userProfile, currentEmployer, employerProfile) {
         println("DEBUG: Current user = $currentUser")
@@ -84,6 +90,13 @@ fun AppNavigation(
             )
         }
 
+        composable("adminDashboard") {
+            AdminMenuScreen(
+                jobViewModel = jobViewModel,
+                navController = navController
+            )
+        }
+
 
         // AppNavigation.kt - Add these composables
         // Add these to your navigation graph
@@ -92,7 +105,10 @@ fun AppNavigation(
         }
 
         composable("adminDashboard") {
-            AdminScreen(jobViewModel) // Your existing admin screen
+            AdminMenuScreen( // Changed to the menu screen you want
+                jobViewModel = jobViewModel,
+                navController = navController // Pass the navController
+            )
         }
 
         composable(Screen.AdminUserManagement.route) {
@@ -131,8 +147,8 @@ fun AppNavigation(
                 navController = navController,
                 jobViewModel = jobViewModel,
                 onSetupComplete = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo("profileSetup") { inclusive = true }
+                    navController.navigate(Screen.AdminDashboard.route) {
+                        popUpTo("adminLogin") { inclusive = true }
                     }
                 }
             )

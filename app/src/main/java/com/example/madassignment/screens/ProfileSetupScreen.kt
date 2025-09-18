@@ -33,7 +33,9 @@ fun ProfileSetupScreen(
     onSetupComplete: () -> Unit
 ) {
     // CHANGE: Set default empty values instead of pre-filled ones
-    var name by remember { mutableStateOf("") }
+
+    val registeredName by jobViewModel.registeredName.collectAsState()
+    var name by remember { mutableStateOf(registeredName ?: "") }
     var age by remember { mutableStateOf("") }
     var aboutMe by remember { mutableStateOf("") }
     var skills by remember { mutableStateOf("") }
@@ -52,32 +54,8 @@ fun ProfileSetupScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Setup Your Profile") },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            // Show quit confirmation dialog instead of just going back
-                            showQuitDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp, // Changed to exit icon
-                            contentDescription = "Quit Setup",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    // Optional: Add a skip button on the right side
-                    TextButton(
-                        onClick = {
-                            // Allow users to skip profile setup
-                            onSetupComplete()
-                        },
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
-                    ) {
-                        Text("Skip")
-                    }
-                },
+
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = Color.White,
@@ -256,6 +234,12 @@ fun ProfileSetupScreen(
                     text = "Skip for now",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                jobViewModel.clearRegisteredName()
             }
         }
     }
