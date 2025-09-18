@@ -1,3 +1,4 @@
+// ProfileSetupScreen.kt
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.layout.*
@@ -5,23 +6,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.madassignment.components.PurpleTopAppBar
 import com.example.madassignment.components.SkillsSelectionDialog
 import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.data.UserProfile
 import com.example.madassignment.data.skillsToString
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSetupScreen(
     navController: NavController,
@@ -29,24 +33,36 @@ fun ProfileSetupScreen(
     onSetupComplete: () -> Unit
 ) {
     // CHANGE: Set default empty values instead of pre-filled ones
-    val currentUser by jobViewModel.currentUser.collectAsState()
-    var name by remember { mutableStateOf(currentUser?.name ?: "") }
+
+    val registeredName by jobViewModel.registeredName.collectAsState()
+    var name by remember { mutableStateOf(registeredName ?: "") }
     var age by remember { mutableStateOf("") }
     var aboutMe by remember { mutableStateOf("") }
     var skills by remember { mutableStateOf("") }
     var company by remember { mutableStateOf("") }
     var showSkillsDialog by remember { mutableStateOf(false) }
+    var showQuitDialog by remember { mutableStateOf(false) } // Added quit dialog state
 
     val isNameValid = remember(name) { isValidName(name) || name.isEmpty() }
     val isAgeValid = remember(age) { isValidAge(age) || age.isEmpty() }
 
-    
+    val currentUser by jobViewModel.currentUser.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
-            PurpleTopAppBar(title = "Setup Your Profile")
+            TopAppBar(
+                title = { Text("Setup Your Profile") },
+
+
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                )
+            )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
@@ -115,7 +131,7 @@ fun ProfileSetupScreen(
                 }
             )
 
-            // Company Input (ADD THIS)
+            // Company Input
             OutlinedTextField(
                 value = company,
                 onValueChange = { company = it },
@@ -205,6 +221,64 @@ fun ProfileSetupScreen(
             ) {
                 Text("Complete Setup", fontSize = 16.sp)
             }
+
+            // Skip Button for optional setup
+            TextButton(
+                onClick = {
+                    // Allow users to skip profile setup
+                    onSetupComplete()
+                },
+                modifier = Modifier.padding(top = 16.dp)
+            ) {
+                Text(
+                    text = "Skip for now",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                jobViewModel.clearRegisteredName()
+            }
+        }
+    }
+
+    // Quit Confirmation Dialog
+    if (showQuitDialog) {
+        AlertDialog(
+            onDismissRequest = { showQuitDialog = false },
+            title = {
+                Text("Quit Setup?")
+            },
+            text = {
+                Text("Are you sure you want to quit profile setup? You will be logged out.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showQuitDialog = false
+                        jobViewModel.logout()
+                        // Navigate back to welcome screen, clearing the back stack
+                        navController.navigate("welcome") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Quit")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showQuitDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

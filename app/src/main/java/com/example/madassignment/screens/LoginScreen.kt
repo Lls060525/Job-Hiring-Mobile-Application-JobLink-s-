@@ -1,10 +1,13 @@
+// LoginScreen.kt
 package com.example.madassignment.screens
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -28,7 +31,7 @@ import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.utils.ValidationUtils
 import kotlinx.coroutines.launch
 
-@SuppressLint("UnrememberedMutableState")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -43,11 +46,7 @@ fun LoginScreen(
     val authState by jobViewModel.authState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Track if admin email is detected
-    val isAdminEmail by derivedStateOf {
-        email.equals("admin@gmail.com", ignoreCase = true)
-    }
+    val scrollState = rememberScrollState()
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var forgotPasswordEmail by remember { mutableStateOf("") }
@@ -59,42 +58,50 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf("") }
-    var emailExistsError by remember { mutableStateOf(false) }
 
-    // Function to check if email already exists
-    fun checkEmailExists(email: String) {
-        if (!isLoginMode && email.isNotBlank() && ValidationUtils.isValidEmail(email)) {
-            scope.launch {
-                val existingUser = jobViewModel.currentUser.value?.let {
-                    // Use the repository to check if email exists
-                    // You'll need to add a method to check email existence
-                    // For now, we'll handle this in the registration flow
-                    null
-                }
-                emailExistsError = existingUser != null
-                if (emailExistsError) {
-                    emailError = "Email already registered"
-                }
-            }
-        }
+    // Admin detection
+    val isAdminEmail by derivedStateOf {
+        email.equals("admin@gmail.com", ignoreCase = true)
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = { navController.popBackStack() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back to Welcome",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(scrollState)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
-
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Logo",
-                modifier = Modifier.height(200.dp).width(300.dp)
+                modifier = Modifier
+                    .height(200.dp)
+                    .width(300.dp)
+                    .padding(bottom = 32.dp)
             )
 
             Text(
@@ -134,12 +141,6 @@ fun LoginScreen(
                 onValueChange = {
                     email = it
                     emailError = ValidationUtils.getEmailErrorMessage(it)
-                    emailExistsError = false // Reset email exists error when typing
-
-                    // Check if email exists in real-time (optional)
-                    if (!isLoginMode && it.isNotBlank()) {
-                        checkEmailExists(it)
-                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,12 +150,10 @@ fun LoginScreen(
                     Icon(Icons.Default.Email, contentDescription = "Email")
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                isError = emailError.isNotBlank() || emailExistsError,
+                isError = emailError.isNotBlank(),
                 supportingText = {
                     if (emailError.isNotBlank()) {
                         Text(emailError)
-                    } else if (emailExistsError) {
-                        Text("Email already registered. Please use a different email or sign in.")
                     }
                 },
                 singleLine = true
@@ -178,10 +177,8 @@ fun LoginScreen(
                         onClick = { passwordVisible = !passwordVisible }
                     ) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Default.Info
-                            else Icons.Default.Info,
-                            contentDescription = if (passwordVisible) "Hide password"
-                            else "Show password"
+                            imageVector = Icons.Default.Info,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password"
                         )
                     }
                 },
@@ -197,16 +194,6 @@ fun LoginScreen(
                 singleLine = true
             )
 
-            // Show admin detection message
-            if (isLoginMode && isAdminEmail) {
-                Text(
-                    text = "Admin account detected",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
             Button(
                 onClick = {
                     // Validate fields before proceeding
@@ -219,15 +206,13 @@ fun LoginScreen(
 
                     val hasErrors = emailError.isNotBlank() ||
                             passwordError.isNotBlank() ||
-                            (!isLoginMode && nameError.isNotBlank()) ||
-                            emailExistsError
+                            (!isLoginMode && nameError.isNotBlank())
 
                     if (!hasErrors) {
                         scope.launch {
                             if (isLoginMode) {
-                                // AUTO-DETECT ADMIN LOGIN
+                                // ADMIN LOGIN CHECK
                                 if (isAdminEmail && password == "admin123") {
-                                    // ADMIN LOGIN
                                     jobViewModel.loginAdmin(email, password).onSuccess {
                                         println("DEBUG: Admin login successful, calling onLoginSuccess")
                                         onLoginSuccess()
@@ -244,22 +229,9 @@ fun LoginScreen(
                                     }
                                 }
                             } else {
-                                // REGISTRATION - Prevent admin registration and duplicate emails
-                                if (isAdminEmail) {
-                                    snackbarHostState.showSnackbar("Cannot register admin account")
-                                    return@launch
-                                }
-
-                                // Additional check for duplicate email
-                                val emailExists = jobViewModel.checkEmailExists(email) // Call the correct ViewModel method
-                                if (emailExists) { // Check if the boolean is 'true'
-                                    emailExistsError = true
-                                    snackbarHostState.showSnackbar("Email already registered. Please use a different email.")
-                                    return@launch
-                                }
-
                                 jobViewModel.register(email, password, name).onSuccess {
-                                    println("DEBUG: Registration successful, calling onLoginSuccess")
+                                    // Store the registered name in ViewModel
+                                    jobViewModel.setRegisteredName(name)
                                     onLoginSuccess()
                                 }.onFailure {
                                     snackbarHostState.showSnackbar("Registration failed: ${it.message}")
@@ -276,20 +248,12 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = email.isNotBlank() && password.isNotBlank() &&
-                        (isLoginMode || name.isNotBlank()) &&
-                        !emailExistsError
+                        (isLoginMode || name.isNotBlank())
             ) {
                 if (authState == AuthState.LOADING) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text(
-                        if (isLoginMode) {
-                            if (isAdminEmail) "Sign In as Admin" else "Sign In"
-                        } else {
-                            "Create Account"
-                        },
-                        fontSize = 16.sp
-                    )
+                    Text(if (isLoginMode) "Sign In" else "Create Account", fontSize = 16.sp)
                 }
             }
 
@@ -300,7 +264,6 @@ fun LoginScreen(
                     emailError = ""
                     passwordError = ""
                     nameError = ""
-                    emailExistsError = false
                     // Reset password visibility when switching modes
                     passwordVisible = false
                 },
@@ -319,7 +282,7 @@ fun LoginScreen(
                         showForgotPasswordDialog = true
                         retrievedPassword = null // Reset when opening dialog
                     },
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
                 ) {
                     Text(
                         text = "Forgot Password?",
@@ -328,7 +291,7 @@ fun LoginScreen(
                 }
             }
 
-            // Forgot Password Dialog
+            // Forgot Password Dialog (unchanged)
             if (showForgotPasswordDialog) {
                 AlertDialog(
                     onDismissRequest = {
@@ -459,4 +422,3 @@ fun LoginScreen(
         }
     }
 }
-

@@ -1,4 +1,3 @@
-// AdminScreen.kt
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.layout.*
@@ -12,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,8 +21,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AdminScreen(jobViewModel: JobViewModel) {
-    var users by remember { mutableStateOf<List<com.example.madassignment.data.User>>(emptyList()) }
-    var stats by remember { mutableStateOf(AdminStats()) }
+    val users by remember { mutableStateOf<List<com.example.madassignment.data.User>>(emptyList()) }
+    val stats by remember { mutableStateOf(AdminStats()) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -97,7 +97,7 @@ fun AdminScreen(jobViewModel: JobViewModel) {
 }
 
 @Composable
-fun StatCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun StatCard(title: String, value: String, icon: ImageVector) {
     Card(
         modifier = Modifier
             .width(100.dp)
@@ -135,7 +135,7 @@ fun UserListItem(user: com.example.madassignment.data.User, onPromoteToAdmin: ()
             if (!user.isAdmin) {
                 Button(
                     onClick = onPromoteToAdmin,
-                    modifier = Modifier.height(36.dp) // Use height instead of size parameter
+                    modifier = Modifier.height(36.dp)
                 ) {
                     Text("Make Admin", fontSize = 12.sp)
                 }

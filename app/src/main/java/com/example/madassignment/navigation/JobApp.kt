@@ -1,8 +1,8 @@
 package com.example.madassignment.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.Modifier
@@ -10,43 +10,55 @@ import com.example.madassignment.components.BottomNavigationBar
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import com.example.madassignment.data.JobViewModel
+import com.example.madassignment.data.EmployerViewModel
 
-// JobApp.kt
 @Composable
-fun JobApp(jobViewModel: JobViewModel) {
+fun JobApp(jobViewModel: JobViewModel, employerViewModel: EmployerViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val currentUserState = jobViewModel.currentUser.collectAsState()
-    val isAdminState = jobViewModel.isAdmin.collectAsState()
     val currentUser = currentUserState.value
-    val isAdmin = isAdminState.value
 
-    // Exclude admin route from showing bottom bar
+    // Define admin routes where bottom bar should be hidden
+    val adminRoutes = listOf(
+        "adminDashboard",
+        Screen.AdminUserManagement.route,
+        Screen.AdminJobListings.route,
+        Screen.AdminCommunityPosts.route,
+        "adminLogin"
+    )
+
+    // Define other routes where bottom bar should be hidden
+    val noBottomBarRoutes = listOf(
+        "auth",
+        "profileSetup",
+        "welcome",
+        "employer_welcome",
+        "employer_auth",
+        "employer_profile_setup"
+    ) + adminRoutes
+
     val showBottomBar = currentUser != null &&
-            currentRoute != "auth" &&
-            currentRoute != "profileSetup" &&
-            currentRoute != Screen.Admin.route &&
-            currentRoute != "adminCommunityPosts" &&
-            currentRoute != "adminUserManagement" &&
-            currentRoute != "adminJobListings"
+            currentRoute != null &&
+            currentRoute !in noBottomBarRoutes
 
-    // Use different screens for admin users
-    val bottomBarScreens = if (isAdmin) adminScreens else screens
+    // Debug logging
+    println("DEBUG: Current user = $currentUser")
+    println("DEBUG: Current route = $currentRoute")
+    println("DEBUG: Show bottom bar = $showBottomBar")
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                BottomNavigationBar(
-                    navController = navController,
-                    screens = bottomBarScreens
-                )
+                BottomNavigationBar(navController)
             }
         }
     ) { innerPadding ->
         AppNavigation(
             navController = navController,
             jobViewModel = jobViewModel,
+            employerViewModel = employerViewModel,
             modifier = Modifier.padding(innerPadding)
         )
     }

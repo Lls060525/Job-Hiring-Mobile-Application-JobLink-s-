@@ -1,14 +1,13 @@
 package com.example.madassignment.data
 
+import android.content.Context
 import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.tasks.await
-import android.content.Context
 import java.util.Date
-
 
 class FirebaseService(private val context: Context) {
     private val db: FirebaseFirestore = Firebase.firestore
@@ -17,16 +16,295 @@ class FirebaseService(private val context: Context) {
     private val jobsCollection = db.collection("jobs")
     private val postsCollection = db.collection("community_posts")
 
+    // User operations
+    suspend fun addUser(user: User): String {
+        val userData = hashMapOf(
+            "id" to user.id,
+            "email" to user.email,
+            "password" to user.password,
+            "name" to user.name,
+            "isAdmin" to user.isAdmin,
+
+            )
+        val result = usersCollection.add(userData).await()
+
+
+
+        return result.id
+    }
+
+    suspend fun getAllUsers(): List<User> {
+        return try {
+            val querySnapshot = usersCollection.get().await()
+            querySnapshot.documents.map { document ->
+                User(
+                    id = document.getLong("id")?.toInt() ?: 0,
+                    email = document.getString("email") ?: "",
+                    password = document.getString("password") ?: "",
+                    name = document.getString("name") ?: "",
+                    isAdmin = document.getBoolean("isAdmin") ?: false
+                    // Remove createdAt and firestoreId if they don't exist in your User class
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+
+
+    suspend fun deleteUser(userId: String): Boolean {
+        return try {
+            val userRef = usersCollection.document(userId)
+            userRef.delete().await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun promoteUserToAdmin(userId: String): Boolean {
+        return try {
+            val userRef = usersCollection.document(userId)
+            userRef.update("isAdmin", true).await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun deleteUserFromFirestore(userId: Int): Boolean {
+        return try {
+            // Delete user profile first
+            val profileQuery = profilesCollection
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            profileQuery.documents.forEach { document ->
+                profilesCollection.document(document.id).delete().await()
+            }
+
+            // Delete user
+            val userQuery = usersCollection
+                .whereEqualTo("id", userId)
+                .get()
+                .await()
+
+            userQuery.documents.forEach { document ->
+                usersCollection.document(document.id).delete().await()
+            }
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun promoteUserToAdmin(userId: Int): Boolean {
+        return try {
+            val userQuery = usersCollection
+                .whereEqualTo("id", userId)
+                .get()
+                .await()
+
+            if (!userQuery.isEmpty) {
+                val document = userQuery.documents[0]
+                usersCollection.document(document.id).update("isAdmin", true).await()
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getAllUsersWithProfiles(): List<Pair<User, UserProfile?>> {
+        return try {
+            val users = getAllUsers()
+            val result = mutableListOf<Pair<User, UserProfile?>>()
+
+            for (user in users) {
+                val profile = getUserProfileByUserId(user.id)
+                result.add(Pair(user, profile))
+            }
+
+            result
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // UserProfile operations
+    suspend fun addUserProfile(profile: UserProfile): String {
+        val profileData = hashMapOf(
+            "userId" to profile.userId,
+            "name" to profile.name,
+            "age" to profile.age,
+            "aboutMe" to profile.aboutMe,
+            "skills" to profile.skills,
+            "company" to profile.company,
+            "profileImageUri" to profile.profileImageUri,
+            "lastUpdated" to profile.lastUpdated,
+            "isSetupComplete" to profile.isSetupComplete
+        )
+        val result = profilesCollection.add(profileData).await()
+        return result.id
+    }
+
+    suspend fun getUserProfileByUserId(userId: Int): UserProfile? {
+        return try {
+            val querySnapshot = profilesCollection
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            if (!querySnapshot.isEmpty) {
+                val document = querySnapshot.documents[0]
+                UserProfile(
+                    userId = document.getLong("userId")?.toInt() ?: 0,
+                    name = document.getString("name") ?: "",
+                    age = document.getString("age") ?: "",
+                    aboutMe = document.getString("aboutMe") ?: "",
+                    skills = document.getString("skills") ?: "",
+                    company = document.getString("company") ?: "",
+                    profileImageUri = document.getString("profileImageUri"),
+                    lastUpdated = document.getDate("lastUpdated") ?: Date(),
+                    isSetupComplete = document.getBoolean("isSetupComplete") ?: false
+                    // Remove firestoreId if it doesn't exist in your UserProfile class
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Job operations
+    suspend fun addJob(job: Job): String {
+        return try {
+            val jobData = hashMapOf(
+                "title" to job.title,
+                "company" to job.company,
+                "location" to job.location,
+                "type" to job.type,
+                "salary" to job.salary,
+                "category" to job.category,
+                "requiredSkills" to job.requiredSkills,
+                "originalJobId" to job.originalJobId,
+                "createdAt" to Date() // Add timestamp
+            )
+            val result = jobsCollection.add(jobData).await()
+            Log.d("FirebaseService", "Job added to Firestore: ${result.id}")
+            result.id
+        } catch (e: Exception) {
+            Log.e("FirebaseService", "Error adding job to Firestore: ${e.message}")
+            e.printStackTrace()
+            "" // Return empty string on error
+        }
+    }
+
+    suspend fun addJobToFirestore(job: Job): Boolean {
+        return try {
+            val jobData = hashMapOf(
+                "title" to job.title,
+                "subtitle" to job.subtitle,
+                "type" to job.type,
+                "location" to job.location,
+                "salary" to job.salary,
+                "category" to job.category,
+                "requiredSkills" to job.requiredSkills,
+                "company" to job.company
+            )
+            jobsCollection.add(jobData).await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getUserJobs(userId: Int): List<Job> {
+        return try {
+            val querySnapshot = jobsCollection
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+
+            querySnapshot.documents.map { document ->
+                Job(
+                    id = document.getLong("id")?.toInt() ?: 0,
+                    title = document.getString("title") ?: "",
+                    subtitle = document.getString("subtitle") ?: "",
+                    type = document.getString("type") ?: "",
+                    location = document.getString("location") ?: "",
+                    salary = document.getString("salary") ?: "",
+                    category = document.getString("category") ?: "",
+                    isSaved = document.getBoolean("isSaved") ?: false,
+                    isApplied = document.getBoolean("isApplied") ?: false,
+                    userId = document.getLong("userId")?.toInt() ?: 0,
+                    originalJobId = document.getLong("originalJobId")?.toInt() ?: 0,
+                    requiredSkills = document.getString("requiredSkills") ?: "",
+                    company = document.getString("company") ?: ""
+                    // Remove firestoreId if it doesn't exist in your Job class
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun migrateAllJobsToFirestore(): Boolean {
+        return try {
+            val allJobs = getRecommendedJobs() + getNewJobs()
+
+            for (job in allJobs) {
+                // Check if job already exists in Firestore to avoid duplicates
+                val existingJobs = jobsCollection
+                    .whereEqualTo("originalJobId", job.originalJobId)
+                    .get()
+                    .await()
+
+                if (existingJobs.isEmpty) {
+                    val jobData = hashMapOf(
+                        "title" to job.title,
+                        "subtitle" to job.subtitle,
+                        "type" to job.type,
+                        "location" to job.location,
+                        "salary" to job.salary,
+                        "category" to job.category,
+                        "isSaved" to false,
+                        "isApplied" to false,
+                        "userId" to 0, // System user
+                        "originalJobId" to job.originalJobId,
+                        "requiredSkills" to job.requiredSkills,
+                        "company" to job.company,
+                        "createdAt" to Date()
+                    )
+                    jobsCollection.add(jobData).await()
+                    Log.d("FirebaseService", "Migrated job: ${job.title}")
+                }
+            }
+            Log.d("FirebaseService", "All jobs migrated successfully")
+            true
+        } catch (e: Exception) {
+            Log.e("FirebaseService", "Error migrating jobs: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // In addPost function
     suspend fun addPost(post: CommunityPost): String {
         val postData = hashMapOf(
             "author" to post.author,
-            "timeAgo" to "Just now", // Initial value
             "company" to post.company,
             "content" to post.content,
             "likes" to post.likes,
             "likedBy" to post.likedBy,
             "userId" to post.userId,
-            "createdAt" to post.createdAt, // Store actual timestamp
+            "createdAt" to post.createdAt, // Store the actual date
             "lastUpdated" to Date()
         )
 
@@ -47,20 +325,21 @@ class FirebaseService(private val context: Context) {
     suspend fun getAllPosts(): List<CommunityPost> {
         return try {
             val querySnapshot = postsCollection
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
             querySnapshot.documents.map { document ->
                 CommunityPost(
-                    id = document.id, // ← Store the ACTUAL Firebase document ID as string
+                    id = document.id,
                     author = document.getString("author") ?: "",
-                    timeAgo = document.getString("timeAgo") ?: "",
+                    timeAgo = "", // Leave empty, will be calculated dynamically
                     company = document.getString("company") ?: "",
                     content = document.getString("content") ?: "",
                     likes = document.getLong("likes")?.toInt() ?: 0,
                     likedBy = document.getString("likedBy") ?: "",
-                    userId = document.getLong("userId")?.toInt() ?: 0
+                    userId = document.getLong("userId")?.toInt() ?: 0,
+                    createdAt = document.getDate("createdAt") ?: Date() // Make sure to read this
                 )
             }
         } catch (e: Exception) {
@@ -83,7 +362,7 @@ class FirebaseService(private val context: Context) {
             val document = postsCollection.document(postId).get().await()
             if (document.exists()) {
                 CommunityPost(
-                    id = document.id, // ← Use actual document ID
+                    id = document.id, // Use actual document ID
                     author = document.getString("author") ?: "",
                     timeAgo = document.getString("timeAgo") ?: "",
                     company = document.getString("company") ?: "",
@@ -91,6 +370,7 @@ class FirebaseService(private val context: Context) {
                     likes = document.getLong("likes")?.toInt() ?: 0,
                     likedBy = document.getString("likedBy") ?: "",
                     userId = document.getLong("userId")?.toInt() ?: 0
+                    // Remove createdAt if it doesn't exist in your CommunityPost class
                 )
             } else {
                 null
@@ -161,6 +441,51 @@ class FirebaseService(private val context: Context) {
         }
     }
 
+    suspend fun togglePostLike(postId: String, userId: Int): Boolean {
+        return try {
+            val postRef = postsCollection.document(postId)
+
+            // Use a transaction to ensure atomic operations
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(postRef)
+                val currentLikes = snapshot.getLong("likes")?.toInt() ?: 0
+                var likedBy = snapshot.getString("likedBy") ?: ""
+
+                val likedByList = if (likedBy.isBlank()) {
+                    mutableListOf()
+                } else {
+                    likedBy.split(",").toMutableList()
+                }
+
+                val userIdStr = userId.toString()
+                val wasLiked = likedByList.contains(userIdStr)
+
+                if (wasLiked) {
+                    // Unlike: remove user ID and decrement count
+                    likedByList.remove(userIdStr)
+                    transaction.update(postRef,
+                        "likes", currentLikes - 1,
+                        "likedBy", likedByList.joinToString(",")
+                    )
+                    false
+                } else {
+                    // Like: add user ID and increment count
+                    likedByList.add(userIdStr)
+                    transaction.update(postRef,
+                        "likes", currentLikes + 1,
+                        "likedBy", likedByList.joinToString(",")
+                    )
+                    true
+                }
+            }.await()
+
+            true // Success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false // Failure
+        }
+    }
+
     suspend fun getPostLikes(postId: String): Pair<Int, List<String>> {
         return try {
             val document = postsCollection.document(postId).get().await()
@@ -176,214 +501,13 @@ class FirebaseService(private val context: Context) {
                     if (parts.size >= 2) parts[1] else "Unknown User"
                 }
             }
+
             Pair(likes, likedByList)
         } catch (e: Exception) {
             Pair(0, emptyList())
         }
     }
 
-    // User operations
-    suspend fun addUser(user: User): String {
-        val userData = hashMapOf(
-            "id" to user.id, // ← ADD THIS LINE
-            "email" to user.email,
-            "password" to user.password,
-            "name" to user.name,
-            "isAdmin" to user.isAdmin,
-            "createdAt" to user.createdAt
-        )
-        val result = usersCollection.add(userData).await()
-
-        // Update local database with Firestore ID
-        val repository = AppRepository(context)
-        repository.updateUserFirestoreId(user.id, result.id)
-
-        return result.id
-    }
-
-    suspend fun getAllUsers(): List<User> {
-        return try {
-            val querySnapshot = usersCollection.get().await()
-            querySnapshot.documents.map { document ->
-                User(
-                    id = document.getLong("id")?.toInt() ?: 0, // Make sure this works
-                    email = document.getString("email") ?: "",
-                    password = document.getString("password") ?: "",
-                    name = document.getString("name") ?: "",
-                    isAdmin = document.getBoolean("isAdmin") ?: false,
-                    createdAt = document.getDate("createdAt") ?: Date(),
-                    firestoreId = document.id
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    // UserProfile operations
-    suspend fun addUserProfile(profile: UserProfile): String {
-        val profileData = hashMapOf(
-            "userId" to profile.userId,
-            "name" to profile.name,
-            "age" to profile.age,
-            "aboutMe" to profile.aboutMe,
-            "skills" to profile.skills,
-            "company" to profile.company,
-            "profileImageUri" to profile.profileImageUri,
-            "lastUpdated" to profile.lastUpdated,
-            "isSetupComplete" to profile.isSetupComplete
-        )
-        val result = profilesCollection.add(profileData).await()
-        return result.id
-    }
-
-    // Job operations
-// In FirebaseService.addJob()
-    suspend fun addJob(job: Job): String {
-        return try {
-            val jobData = hashMapOf(
-                "title" to job.title,
-                "company" to job.company,
-                "location" to job.location,
-                "type" to job.type,
-                "salary" to job.salary,
-                "category" to job.category,
-                "requiredSkills" to job.requiredSkills,
-                "originalJobId" to job.originalJobId,
-                "createdAt" to Date() // Add timestamp
-            )
-            val result = jobsCollection.add(jobData).await()
-            Log.d("FirebaseService", "Job added to Firestore: ${result.id}")
-            result.id
-        } catch (e: Exception) {
-            Log.e("FirebaseService", "Error adding job to Firestore: ${e.message}")
-            e.printStackTrace()
-            "" // Return empty string on error
-        }
-    }
-
-    suspend fun getUserJobs(userId: Int): List<Job> {
-        return try {
-            val querySnapshot = jobsCollection
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
-
-            querySnapshot.documents.map { document ->
-                Job(
-                    id = document.getLong("id")?.toInt() ?: 0,
-                    title = document.getString("title") ?: "",
-                    subtitle = document.getString("subtitle") ?: "",
-                    type = document.getString("type") ?: "",
-                    location = document.getString("location") ?: "",
-                    salary = document.getString("salary") ?: "",
-                    category = document.getString("category") ?: "",
-                    isSaved = document.getBoolean("isSaved") ?: false,
-                    isApplied = document.getBoolean("isApplied") ?: false,
-                    userId = document.getLong("userId")?.toInt() ?: 0,
-                    originalJobId = document.getLong("originalJobId")?.toInt() ?: 0,
-                    requiredSkills = document.getString("requiredSkills") ?: "",
-                    company = document.getString("company") ?: "",
-                    firestoreId = document.id
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun getAllUsersWithProfiles(): List<Pair<User, UserProfile?>> {
-        return try {
-            val users = getAllUsers()
-            val result = mutableListOf<Pair<User, UserProfile?>>()
-
-            for (user in users) {
-                val profile = getUserProfileByUserId(user.id)
-                result.add(Pair(user, profile))
-            }
-
-            result
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    suspend fun getUserProfileByUserId(userId: Int): UserProfile? {
-        return try {
-            val querySnapshot = profilesCollection
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
-
-            if (!querySnapshot.isEmpty) {
-                val document = querySnapshot.documents[0]
-                UserProfile(
-                    userId = document.getLong("userId")?.toInt() ?: 0,
-                    name = document.getString("name") ?: "",
-                    age = document.getString("age") ?: "",
-                    aboutMe = document.getString("aboutMe") ?: "",
-                    skills = document.getString("skills") ?: "",
-                    company = document.getString("company") ?: "",
-                    profileImageUri = document.getString("profileImageUri"),
-                    lastUpdated = document.getDate("lastUpdated") ?: Date(),
-                    isSetupComplete = document.getBoolean("isSetupComplete") ?: false,
-                    firestoreId = document.id
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun deleteUserFromFirestore(userId: Int): Boolean {
-        return try {
-            // Delete user profile first
-            val profileQuery = profilesCollection
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
-
-            profileQuery.documents.forEach { document ->
-                profilesCollection.document(document.id).delete().await()
-            }
-
-            // Delete user
-            val userQuery = usersCollection
-                .whereEqualTo("id", userId)
-                .get()
-                .await()
-
-            userQuery.documents.forEach { document ->
-                usersCollection.document(document.id).delete().await()
-            }
-
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    suspend fun promoteUserToAdmin(userId: Int): Boolean {
-        return try {
-            val userQuery = usersCollection
-                .whereEqualTo("id", userId)
-                .get()
-                .await()
-
-            if (!userQuery.isEmpty) {
-                val document = userQuery.documents[0]
-                usersCollection.document(document.id).update("isAdmin", true).await()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    // FirebaseService.kt - Check if listener is triggering multiple times
     fun addPostsRealTimeListener(onPostsUpdated: (List<CommunityPost>) -> Unit) {
         postsCollection
             .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -398,13 +522,13 @@ class FirebaseService(private val context: Context) {
                         CommunityPost(
                             id = document.id,
                             author = document.getString("author") ?: "",
-                            timeAgo = "",
+                            timeAgo = "", // Will be calculated in UI
                             company = document.getString("company") ?: "",
                             content = document.getString("content") ?: "",
                             likes = document.getLong("likes")?.toInt() ?: 0,
                             likedBy = document.getString("likedBy") ?: "",
                             userId = document.getLong("userId")?.toInt() ?: 0,
-                            createdAt = document.getDate("createdAt") ?: Date() // Default to now if missing
+                            createdAt = document.getDate("createdAt") ?: Date() // Read from Firebase
                         )
                     }
                     onPostsUpdated(posts)
@@ -412,50 +536,8 @@ class FirebaseService(private val context: Context) {
             }
     }
 
-    // FirebaseService.kt
-    suspend fun migrateAllJobsToFirestore(): Boolean {
-        return try {
-            val allJobs = getRecommendedJobs() + getNewJobs()
-
-            for (job in allJobs) {
-                // Check if job already exists in Firestore to avoid duplicates
-                val existingJobs = jobsCollection
-                    .whereEqualTo("originalJobId", job.originalJobId)
-                    .get()
-                    .await()
-
-                if (existingJobs.isEmpty) {
-                    val jobData = hashMapOf(
-                        "title" to job.title,
-                        "subtitle" to job.subtitle,
-                        "type" to job.type,
-                        "location" to job.location,
-                        "salary" to job.salary,
-                        "category" to job.category,
-                        "isSaved" to false,
-                        "isApplied" to false,
-                        "userId" to 0, // System user
-                        "originalJobId" to job.originalJobId,
-                        "requiredSkills" to job.requiredSkills,
-                        "company" to job.company,
-                        "createdAt" to Date()
-                    )
-                    jobsCollection.add(jobData).await()
-                    Log.d("FirebaseService", "Migrated job: ${job.title}")
-                }
-            }
-            Log.d("FirebaseService", "All jobs migrated successfully")
-            true
-        } catch (e: Exception) {
-            Log.e("FirebaseService", "Error migrating jobs: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    // Helper function to get all jobs (move these from AppRepository if needed)
+    // Helper functions for jobs
     private fun getRecommendedJobs(): List<Job> {
-        // Copy the same function from AppRepository
         return listOf(
             Job(
                 id = 1001,
@@ -701,7 +783,6 @@ class FirebaseService(private val context: Context) {
     }
 
     private fun getNewJobs(): List<Job> {
-        // Copy the same function from AppRepository
         return listOf(
             Job(
                 id = 2001,
@@ -944,7 +1025,5 @@ class FirebaseService(private val context: Context) {
                 company = "Celebrity Fitness"
             )
         )
-
     }
-
 }

@@ -16,11 +16,14 @@ import com.example.madassignment.components.UnapplyJobDialog
 import com.example.madassignment.data.Job
 import com.example.madassignment.data.JobViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun MyActivityScreen(jobViewModel: JobViewModel) {
-    val savedJobs by remember { derivedStateOf { jobViewModel.savedJobs } }
-    val appliedJobs by remember { derivedStateOf { jobViewModel.appliedJobs } }
+    // Collect StateFlow as state with initial values
+    val savedJobs by jobViewModel.savedJobs.collectAsState(initial = emptyList())
+    val appliedJobs by jobViewModel.appliedJobs.collectAsState(initial = emptyList())
+
     var selectedTabIndex by remember { mutableStateOf(0) }
     var showUnsaveDialog by remember { mutableStateOf(false) }
     var showUnapplyDialog by remember { mutableStateOf(false) }
@@ -28,6 +31,18 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Log for debugging
+    LaunchedEffect(savedJobs, appliedJobs) {
+        println("DEBUG MyActivity: Saved jobs count: ${savedJobs.size}")
+        println("DEBUG MyActivity: Applied jobs count: ${appliedJobs.size}")
+        savedJobs.forEach { job ->
+            println("DEBUG MyActivity: Saved job - ID: ${job.id}, OriginalID: ${job.originalJobId}, Title: ${job.title}")
+        }
+        appliedJobs.forEach { job ->
+            println("DEBUG MyActivity: Applied job - ID: ${job.id}, OriginalID: ${job.originalJobId}, Title: ${job.title}")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -81,8 +96,7 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
                     items(savedJobs) { job ->
                         JobCard(
                             job = job,
-                            isSaved = true,
-                            isApplied = job.isApplied,
+                            jobViewModel = jobViewModel,
                             onClick = {
                                 // You can show job details here if needed
                             },
@@ -90,14 +104,7 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
                                 selectedJob = job
                                 showUnsaveDialog = true
                             },
-                            onUnapply = if (job.isApplied) {
-                                {
-                                    selectedJob = job
-                                    showUnapplyDialog = true
-                                }
-                            } else {
-                                null
-                            }
+                            onUnapply = null // Saved jobs might not be applied
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -118,19 +125,11 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
                     items(appliedJobs) { job ->
                         JobCard(
                             job = job,
-                            isSaved = job.isSaved,
-                            isApplied = true,
+                            jobViewModel = jobViewModel,
                             onClick = {
                                 // You can show job details here if needed
                             },
-                            onUnsave = if (job.isSaved) {
-                                {
-                                    selectedJob = job
-                                    showUnsaveDialog = true
-                                }
-                            } else {
-                                null
-                            },
+                            onUnsave = null, // Applied jobs might not be saved
                             onUnapply = {
                                 selectedJob = job
                                 showUnapplyDialog = true
@@ -156,6 +155,8 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
                 scope.launch {
                     snackbarHostState.showSnackbar("Job removed from saved list")
                 }
+                showUnsaveDialog = false
+                selectedJob = null
             }
         )
     }
@@ -173,6 +174,8 @@ fun MyActivityScreen(jobViewModel: JobViewModel) {
                 scope.launch {
                     snackbarHostState.showSnackbar("Job application cancelled")
                 }
+                showUnapplyDialog = false
+                selectedJob = null
             }
         )
     }

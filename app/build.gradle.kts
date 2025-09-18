@@ -63,6 +63,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     implementation(libs.firebase.crashlytics.buildtools)
+    
     kapt("androidx.room:room-compiler:2.6.1")
 
     // Coil for image loading
@@ -79,4 +80,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
 }

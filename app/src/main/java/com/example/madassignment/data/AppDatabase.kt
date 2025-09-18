@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [User::class, Job::class, CommunityPost::class, UserProfile::class],
-    version = 7, // Increment version
+    entities = [User::class, Job::class, CommunityPost::class, UserProfile::class, Employer::class, EmployerProfile::class,EmployerJobPost::class,EmployeeJobPost::class],
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,29 +47,10 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Migration from version 4 to 5
+        // Migration from version 4 to 5 (safe incremental update)
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Add createdAt to jobs
-                database.execSQL("ALTER TABLE jobs ADD COLUMN createdAt INTEGER DEFAULT 0")
-            }
-        }
-
-        // Migration from version 5 to 6
-        private val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Add lastUpdated to community_posts
-                database.execSQL("ALTER TABLE community_posts ADD COLUMN lastUpdated INTEGER DEFAULT 0")
-            }
-        }
-
-        // Migration from version 6 to 7
-        private val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Add firestoreId fields to all tables
-                database.execSQL("ALTER TABLE users ADD COLUMN firestoreId TEXT DEFAULT ''")
-                database.execSQL("ALTER TABLE user_profiles ADD COLUMN firestoreId TEXT DEFAULT ''")
-                database.execSQL("ALTER TABLE jobs ADD COLUMN firestoreId TEXT DEFAULT ''")
+                // This can be empty if no new changes, but helps with version increment
             }
         }
 
@@ -80,14 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "madassignment_db"
                 )
-                    .addMigrations(
-                        MIGRATION_1_2,
-                        MIGRATION_2_3,
-                        MIGRATION_3_4,
-                        MIGRATION_4_5,
-                        MIGRATION_5_6,
-                        MIGRATION_6_7
-                    )
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration() // ⬅️ This is important for development
                     .build()
                 INSTANCE = instance

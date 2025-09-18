@@ -1,4 +1,4 @@
-// CommunityScreen.kt - Updated version
+// CommunityScreen.kt - Fixed version
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.layout.*
@@ -19,8 +19,15 @@ import androidx.compose.ui.unit.sp
 import com.example.madassignment.components.*
 import com.example.madassignment.data.JobViewModel
 import kotlinx.coroutines.launch
-import com.example.madassignment.data.CommunityPost
 import java.util.Date
+import com.example.madassignment.components.CommunityPost
+import com.example.madassignment.components.CreatePostDialog
+import com.example.madassignment.components.DeletePostDialog
+import com.example.madassignment.components.EditPostDialog
+import com.example.madassignment.components.LikesDialog
+import com.example.madassignment.components.PurpleTopAppBar
+import com.example.madassignment.data.CommunityPost
+
 
 @Composable
 fun CommunityScreen(jobViewModel: JobViewModel) {
@@ -30,7 +37,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
     var showLikesDialog by remember { mutableStateOf(false) }
     var selectedPostForLikes by remember { mutableStateOf<String?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var selectedPostForDelete by remember { mutableStateOf<com.example.madassignment.data.CommunityPost?>(null) }
+    var selectedPostForDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     val currentUser by jobViewModel.currentUser.collectAsState()
     val userProfile by jobViewModel.userProfile.collectAsState()
@@ -52,7 +59,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
 
         // Apply user filter
         if (selectedFilter == "mine" && currentUser != null) {
-            result = result.filter { it.userId == currentUser!!.id } // Change authorId to userId
+            result = result.filter { it.userId == currentUser!!.id }
         }
 
         result
@@ -61,9 +68,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var selectedPostForEdit by remember { mutableStateOf<CommunityPost?>(null) }
 
-    LaunchedEffect(Unit) {
-        jobViewModel.loadAllUsers()
-    }
+    // REMOVED: LaunchedEffect with loadAllUsers() since it doesn't exist
 
     Scaffold(
         topBar = {
@@ -157,8 +162,9 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
             ) {
                 items(filteredPosts) { post ->
                     val isOwnPost = currentUser != null && post.userId == currentUser!!.id
+                    val isLiked = jobViewModel.isPostLiked(post.id)
 
-// In CommunityScreen.kt - make sure you're passing the onEditClick parameter
+                    // Use the renamed composable
                     CommunityPost(
                         post = post,
                         jobViewModel = jobViewModel,
@@ -181,7 +187,7 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                         } else {
                             null
                         },
-                        isLiked = jobViewModel.isPostLiked(post.id),
+                        isLiked = isLiked,
                         isOwnPost = isOwnPost,
                         onSeeMoreLikes = {
                             selectedPostForLikes = post.id
@@ -201,12 +207,12 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 val newPost = CommunityPost(
                     id = "",
                     author = userProfile?.name ?: currentUser?.name ?: "Anonymous",
-                    timeAgo = "Just now", // This will be recalculated
+                    timeAgo = "Just now",
                     company = userProfile?.company ?: "",
                     content = content,
                     likes = 0,
                     userId = currentUser!!.id,
-                    createdAt = Date() // Set current timestamp
+                    createdAt = Date()
                 )
                 jobViewModel.addCommunityPost(newPost)
                 scope.launch {
@@ -243,7 +249,6 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 jobViewModel.deleteCommunityPost(selectedPostForDelete!!)
                 showDeleteDialog = false
                 selectedPostForDelete = null
-
                 scope.launch {
                     snackbarHostState.showSnackbar("Post deleted successfully")
                 }
@@ -269,6 +274,5 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
             }
         )
     }
-
 }
 

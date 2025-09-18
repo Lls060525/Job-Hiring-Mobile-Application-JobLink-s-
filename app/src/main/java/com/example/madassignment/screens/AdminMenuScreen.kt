@@ -7,20 +7,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.madassignment.components.PurpleTopAppBar
 import com.example.madassignment.data.JobViewModel
+import com.example.madassignment.navigation.Screen
 
 @Composable
 fun AdminMenuScreen(
     jobViewModel: JobViewModel,
-    navController: NavController // Removed null default, made non-nullable
+    navController: NavController
 ) {
     // Get the current user from the ViewModel
     val currentUser by jobViewModel.currentUser.collectAsState()
@@ -34,7 +39,7 @@ fun AdminMenuScreen(
             ExtendedFloatingActionButton(
                 onClick = {
                     jobViewModel.logout()
-                    navController.navigate("auth") {
+                    navController.navigate("welcome") {
                         popUpTo(0) { inclusive = true }
                     }
                 },
@@ -63,29 +68,26 @@ fun AdminMenuScreen(
                 )
             }
 
-            // Admin options
             AdminOptionCard(
                 title = "User Management",
                 description = "View and manage all users",
-                onClick = { navController.navigate("adminUserManagement") }
+                onClick = { navController.navigate(Screen.AdminUserManagement.route) }
             )
 
             AdminOptionCard(
                 title = "Job Listings",
                 description = "Manage job postings",
-                onClick = { navController.navigate("adminJobListings") }
+                onClick = { navController.navigate(Screen.AdminJobListings.route) }
             )
 
             AdminOptionCard(
                 title = "Community Posts",
                 description = "Moderate community content",
-                onClick = { navController.navigate("adminCommunityPosts") }
+                onClick = { navController.navigate(Screen.AdminCommunityPosts.route) }
             )
-
         }
     }
 }
-
 @Composable
 fun AdminOptionCard(
     title: String,
@@ -116,3 +118,5 @@ fun AdminOptionCard(
         }
     }
 }
+
+

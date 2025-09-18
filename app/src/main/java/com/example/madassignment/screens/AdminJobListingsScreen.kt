@@ -3,11 +3,16 @@ package com.example.madassignment.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,17 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.madassignment.data.JobViewModel
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,18 +30,15 @@ fun AdminJobListingsScreen(
     jobViewModel: JobViewModel,
     navController: NavController
 ) {
-    val allJobs = remember { jobViewModel.allJobs }
-    val appliedJobs = remember { jobViewModel.appliedJobs }
-    val savedJobs = remember { jobViewModel.savedJobs }
+    val allJobs = jobViewModel.allJobs
+    val appliedJobs by jobViewModel.appliedJobs.collectAsState()
+    val savedJobs by jobViewModel.savedJobs.collectAsState()
     val showAddDialog by jobViewModel.showAddJobDialog.collectAsState()
-    var showMigrationDialog by remember { mutableStateOf(false) } // Add this line
+    var showMigrationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-
         jobViewModel.loadAllJobsFromDatabase()
     }
-
-
 
     Scaffold(
         topBar = {
@@ -54,7 +46,7 @@ fun AdminJobListingsScreen(
                 title = { Text("Job Listings Management") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -113,7 +105,7 @@ fun AdminJobListingsScreen(
                 StatCard(
                     title = "Applied",
                     value = appliedJobs.size.toString(),
-                    icon = Icons.Default.Send
+                    icon = Icons.AutoMirrored.Filled.Send
                 )
                 StatCard(
                     title = "Saved",
@@ -161,7 +153,6 @@ fun AdminJobListingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // You'll need to implement this in JobViewModel
                         jobViewModel.migrateJobsToFirestore()
                         showMigrationDialog = false
                     }
@@ -312,12 +303,6 @@ fun AdminJobListItem(job: com.example.madassignment.data.Job, onDelete: () -> Un
             ) {
                 Text("Delete")
             }
-
         }
     }
 }
-
-
-
-
-

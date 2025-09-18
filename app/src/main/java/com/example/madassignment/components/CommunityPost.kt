@@ -1,6 +1,7 @@
 package com.example.madassignment.components
 
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,15 +33,18 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.madassignment.data.CommunityPost
 import com.example.madassignment.data.JobViewModel
 import com.example.madassignment.utils.TimeUtils
 import kotlinx.coroutines.delay
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
+
+// Update CommunityPost.kt - Add edit button in the rightmost corner
 @Composable
 fun CommunityPost(
-    post: com.example.madassignment.data.CommunityPost,
+    post: CommunityPost,
     jobViewModel: JobViewModel,
     onLikeClick: () -> Unit,
     onEditClick: (() -> Unit)? = null, // Add edit callback
@@ -50,7 +54,7 @@ fun CommunityPost(
     onSeeMoreLikes: () -> Unit
 ) {
 
-    // Calculate time ago dynamically and make it update over time
+// Calculate time ago dynamically and make it update over time
     val timeAgo by produceState(initialValue = TimeUtils.getTimeAgo(post.createdAt)) {
         // Update every minute for recent posts
         if (TimeUnit.MILLISECONDS.toMinutes(Date().time - post.createdAt.time) < 60) {
@@ -64,7 +68,6 @@ fun CommunityPost(
     val likerNames = remember(post.likedBy) {
         jobViewModel.getLikerNames(post.likedBy)
     }
-
 
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -86,33 +89,38 @@ fun CommunityPost(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Author and time - show "Yourself" for own posts
-            Text(
-                text = if (isOwnPost) {
-                    "${post.author} - Yourself • $timeAgo"
-                } else {
-                    "${post.author} • $timeAgo"
-                },
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isOwnPost) MaterialTheme.colorScheme.primary else Color.DarkGray,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            // Header row with author, time, and edit button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Author and time - show "Yourself" for own posts
+                Text(
+                    text = if (isOwnPost) {
+                        "${post.author} - Yourself • $timeAgo"
+                    } else {
+                        "${post.author} • $timeAgo"
+                    },
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isOwnPost) MaterialTheme.colorScheme.primary else Color.DarkGray
+                )
 
-            // Edit button for own posts
-            if (isOwnPost && onEditClick != null) {
-                IconButton(
-                    onClick = onEditClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Post",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                // Edit button for own posts - positioned at the rightmost corner
+                if (isOwnPost && onEditClick != null) {
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Post",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
-
 
             // Company name
             Text(
@@ -120,7 +128,7 @@ fun CommunityPost(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
 
             // Content
