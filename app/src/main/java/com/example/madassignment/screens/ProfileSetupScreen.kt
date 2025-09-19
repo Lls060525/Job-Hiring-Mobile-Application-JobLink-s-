@@ -54,8 +54,6 @@ fun ProfileSetupScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Setup Your Profile") },
-
-
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = Color.White,
@@ -220,20 +218,6 @@ fun ProfileSetupScreen(
                 enabled = name.isNotBlank() && age.isNotBlank() && isValidName(name) && isValidAge(age)
             ) {
                 Text("Complete Setup", fontSize = 16.sp)
-            }
-
-            // Skip Button for optional setup
-            TextButton(
-                onClick = {
-                    // Allow users to skip profile setup
-                    onSetupComplete()
-                },
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Text(
-                    text = "Skip for now",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
 
