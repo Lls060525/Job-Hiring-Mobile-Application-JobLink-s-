@@ -184,7 +184,8 @@ fun AppNavigation(
         composable("employer_community") {
             EmployerCommunityScreen(
                 navController = navController,
-                employerViewModel = employerViewModel
+                employerViewModel = employerViewModel,
+                jobViewModel = jobViewModel
             )
         }
 

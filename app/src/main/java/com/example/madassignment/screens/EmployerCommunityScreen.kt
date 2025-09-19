@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,34 +15,28 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.madassignment.components.CommunityPost
-import com.example.madassignment.components.CreatePostDialog
 import com.example.madassignment.components.EmployerBottomNavigationBar
 import com.example.madassignment.components.PurpleTopAppBar
+import com.example.madassignment.components.ViewOnlyCommunityPost
 import com.example.madassignment.data.EmployerViewModel
+import com.example.madassignment.data.JobViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun EmployerCommunityScreen(
     navController: NavController,
-    employerViewModel: EmployerViewModel
+    employerViewModel: EmployerViewModel,
+    jobViewModel: JobViewModel
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var showCreateDialog by remember { mutableStateOf(false) }
 
-    val currentEmployer by employerViewModel.currentEmployer.collectAsState()
-    val employerProfile by employerViewModel.employerProfile.collectAsState()
     val allPosts by employerViewModel.allCommunityPosts.collectAsState()
-
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
-    // Add this LaunchedEffect to load posts when screen loads
-    LaunchedEffect(currentEmployer) {
-        if (currentEmployer != null) {
-            employerViewModel.loadCommunityPosts()
-            employerViewModel.setupCommunityPostsListener() // For real-time updates
-        }
+    // Load posts when screen loads
+    LaunchedEffect(Unit) {
+        employerViewModel.loadCommunityPosts()
+        employerViewModel.setupCommunityPostsListener()
     }
 
     val filteredPosts = remember(searchQuery, allPosts) {
@@ -60,22 +53,12 @@ fun EmployerCommunityScreen(
 
     Scaffold(
         topBar = {
-            PurpleTopAppBar(title = "Employer Community")
+            PurpleTopAppBar(title = "Community Posts")
         },
         bottomBar = {
             EmployerBottomNavigationBar(navController = navController)
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            if (currentEmployer != null) {
-                FloatingActionButton(
-                    onClick = { showCreateDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Post")
-                }
-            }
-        }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -89,7 +72,7 @@ fun EmployerCommunityScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                placeholder = { Text("Search by name or company...") },
+                placeholder = { Text("Search posts...") },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = "Search")
                 },
@@ -99,10 +82,18 @@ fun EmployerCommunityScreen(
 
             // Title
             Text(
-                text = "Community Discussions",
-                fontSize = 24.sp,
+                text = "User Community Posts",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            // Description
+            Text(
+                text = "View what users are discussing in the community",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
             if (filteredPosts.isEmpty()) {
@@ -114,7 +105,7 @@ fun EmployerCommunityScreen(
                     )
                 } else {
                     Text(
-                        text = "No posts yet. Be the first to share!",
+                        text = "No community posts yet",
                         modifier = Modifier.padding(16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -127,41 +118,14 @@ fun EmployerCommunityScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 items(filteredPosts) { post ->
-                    CommunityPost(
+                    // Use ViewOnlyCommunityPost instead of CommunityPost
+                    ViewOnlyCommunityPost(
                         post = post,
-                        onLikeClick = {
-                            employerViewModel.togglePostLike(post.id)
-                        },
-                        isLiked = employerViewModel.isPostLiked(post)
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
-    }
-
-    if (showCreateDialog && currentEmployer != null) {
-        CreatePostDialog(
-            onDismiss = { showCreateDialog = false },
-            onPostCreated = { content ->
-                // Create a new post with the correct parameters
-                val newPost = com.example.madassignment.data.CommunityPost(
-                    id = "", // Firebase will assign the real ID
-                    author = employerProfile?.companyName ?: currentEmployer?.email ?: "Anonymous Employer",
-                    timeAgo = "Just now",
-                    company = employerProfile?.companyName ?: "Company",
-                    content = content,
-                    likes = 0,
-                    likedBy = "",
-                    userId = currentEmployer?.id ?: 0
-                )
-                employerViewModel.addCommunityPost(newPost)
-                scope.launch {
-                    snackbarHostState.showSnackbar("Post created successfully!")
-                }
-            },
-            userName = employerProfile?.companyName ?: currentEmployer?.email ?: "",
-            userCompany = employerProfile?.companyName ?: ""
-        )
     }
 }

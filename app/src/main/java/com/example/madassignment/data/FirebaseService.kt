@@ -295,17 +295,16 @@ class FirebaseService(private val context: Context) {
         }
     }
 
-    // Post operations
+    // In addPost function
     suspend fun addPost(post: CommunityPost): String {
         val postData = hashMapOf(
             "author" to post.author,
-            "timeAgo" to "Just now", // Initial value
             "company" to post.company,
             "content" to post.content,
             "likes" to post.likes,
             "likedBy" to post.likedBy,
             "userId" to post.userId,
-            "createdAt" to Date(), // Always use current date
+            "createdAt" to post.createdAt, // Store the actual date
             "lastUpdated" to Date()
         )
 
@@ -326,21 +325,21 @@ class FirebaseService(private val context: Context) {
     suspend fun getAllPosts(): List<CommunityPost> {
         return try {
             val querySnapshot = postsCollection
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
 
             querySnapshot.documents.map { document ->
                 CommunityPost(
-                    id = document.id, // Store the ACTUAL Firebase document ID as string
+                    id = document.id,
                     author = document.getString("author") ?: "",
-                    timeAgo = document.getString("timeAgo") ?: "",
+                    timeAgo = "", // Leave empty, will be calculated dynamically
                     company = document.getString("company") ?: "",
                     content = document.getString("content") ?: "",
                     likes = document.getLong("likes")?.toInt() ?: 0,
                     likedBy = document.getString("likedBy") ?: "",
-                    userId = document.getLong("userId")?.toInt() ?: 0
-                    // Remove createdAt if it doesn't exist in your CommunityPost class
+                    userId = document.getLong("userId")?.toInt() ?: 0,
+                    createdAt = document.getDate("createdAt") ?: Date() // Make sure to read this
                 )
             }
         } catch (e: Exception) {
@@ -523,13 +522,13 @@ class FirebaseService(private val context: Context) {
                         CommunityPost(
                             id = document.id,
                             author = document.getString("author") ?: "",
-                            timeAgo = "",
+                            timeAgo = "", // Will be calculated in UI
                             company = document.getString("company") ?: "",
                             content = document.getString("content") ?: "",
                             likes = document.getLong("likes")?.toInt() ?: 0,
                             likedBy = document.getString("likedBy") ?: "",
-                            userId = document.getLong("userId")?.toInt() ?: 0
-                            // Remove createdAt if it doesn't exist in your CommunityPost class
+                            userId = document.getLong("userId")?.toInt() ?: 0,
+                            createdAt = document.getDate("createdAt") ?: Date() // Read from Firebase
                         )
                     }
                     onPostsUpdated(posts)

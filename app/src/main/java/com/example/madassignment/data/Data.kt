@@ -72,12 +72,13 @@ data class Job(
 data class CommunityPost(
     @PrimaryKey val id: String,
     val author: String,
-    val timeAgo: String,
+    val timeAgo: String, // This can be calculated, not stored
     val company: String,
     val content: String,
     var likes: Int = 0,
     val likedBy: String = "",
-    val userId: Int = 0
+    val userId: Int = 0,
+    val createdAt: Date = Date() // Make sure this is stored
 )
 
 enum class AuthState {

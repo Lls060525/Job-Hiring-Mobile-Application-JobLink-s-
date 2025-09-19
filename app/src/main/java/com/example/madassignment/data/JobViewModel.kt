@@ -14,7 +14,11 @@ import kotlinx.coroutines.launch
 import com.example.madassignment.utils.ValidationUtils
 import kotlinx.coroutines.delay
 
+
+
 class JobViewModel(context: Context) : ViewModel() {
+
+
     private val repository = AppRepository(context)
     private val firebaseService = FirebaseService(context)
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -45,6 +49,8 @@ class JobViewModel(context: Context) : ViewModel() {
 
     private val _communityPosts = mutableStateListOf<CommunityPost>()
     val communityPosts: List<CommunityPost> get() = _communityPosts
+
+
     val allCommunityPosts = mutableStateListOf<CommunityPost>()
 
     // Admin-related state flows
@@ -188,12 +194,13 @@ class JobViewModel(context: Context) : ViewModel() {
             try {
                 val success = repository.promoteUserToAdminInFirestore(userId)
                 if (success) {
-                    // Update local list
+                    // Update local list - FIX: Don't use direct index assignment
                     val index = _allUsersWithProfiles.indexOfFirst { it.first.id == userId }
                     if (index != -1) {
                         val (user, profile) = _allUsersWithProfiles[index]
                         val updatedUser = user.copy(isAdmin = true)
-                        _allUsersWithProfiles[index] = Pair(updatedUser, profile)
+                        _allUsersWithProfiles.removeAt(index) // Remove old entry
+                        _allUsersWithProfiles.add(index, Pair(updatedUser, profile)) // Add updated entry
                     }
                     _errorMessage.value = "User promoted to admin successfully"
                 } else {
@@ -278,6 +285,67 @@ class JobViewModel(context: Context) : ViewModel() {
                 e.printStackTrace()
                 _errorMessage.value = "Error adding job: ${e.message}"
             }
+        }
+    }
+
+
+
+
+    // JobViewModel.kt - Add this method
+// Replace your updateCommunityPost function with this fixed version:
+    fun updateCommunityPost(postId: String, newContent: String) {
+        viewModelScope.launch {
+            try {
+                val success = firebaseService.updatePostContent(postId, newContent)
+                if (success) {
+                    // Update local list immediately for better UX
+                    val index = allCommunityPosts.indexOfFirst { it.id == postId }
+                    if (index != -1) {
+                        val updatedPost = allCommunityPosts[index].copy(content = newContent)
+                        // FIX: Don't use direct assignment, use removeAt and add instead
+                        allCommunityPosts.removeAt(index)
+                        allCommunityPosts.add(index, updatedPost)
+
+                        // Also update in user's posts if it exists there
+                        val userIndex = communityPosts.indexOfFirst { it.id == postId }
+                        if (userIndex != -1) {
+                            val updatedUserPost = communityPosts[userIndex].copy(content = newContent)
+                            // FIX: Same here - don't use direct assignment
+                            _communityPosts.removeAt(userIndex)
+                            _communityPosts.add(userIndex, updatedUserPost)
+                        }
+                    }
+                    _errorMessage.value = "Post updated successfully"
+                } else {
+                    _errorMessage.value = "Failed to update post"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error updating post: ${e.message}"
+            }
+        }
+    }
+
+    // Method to get user names from likedBy string
+    fun getLikerNames(likedBy: String): List<String> {
+        if (likedBy.isBlank()) return emptyList()
+
+
+        return try {
+            likedBy.split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .map { entry ->
+                    // Parse format: "userId:userName"
+                    val parts = entry.split(":")
+                    if (parts.size >= 2) {
+                        parts[1] // Return the user name
+                    } else {
+                        "Unknown User"
+                    }
+                }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 
@@ -408,8 +476,7 @@ class JobViewModel(context: Context) : ViewModel() {
             isApplied ?: currentState.second
         )
         currentStates[jobId] = newState
-        _jobStates.value = currentStates
-        Log.d("JobViewModel", "Updated job state for ID $jobId: saved=${newState.first}, applied=${newState.second}")
+        _jobStates.value = currentStates.toMap() // Create immutable copy
     }
 
     private suspend fun loadAllUserData(userId: Int) {
@@ -425,31 +492,43 @@ class JobViewModel(context: Context) : ViewModel() {
 
             // Create a new job states map based on actual database data
             val newJobStates = mutableMapOf<Int, Pair<Boolean, Boolean>>()
+            allAvailableJobs.value.forEach { availableJob ->
+                val isSaved = saved.any { savedJob ->
+                    // Fix the conditions - check both ID and originalJobId
+                    savedJob.id == availableJob.id ||
+                            savedJob.originalJobId == availableJob.originalJobId ||
+                            (savedJob.originalJobId != 0 && savedJob.originalJobId == availableJob.originalJobId)
+                }
+                val isApplied = applied.any { appliedJob ->
+                    appliedJob.id == availableJob.id ||
+                            appliedJob.originalJobId == availableJob.originalJobId ||
+                            (appliedJob.originalJobId != 0 && appliedJob.originalJobId == availableJob.originalJobId)
+                }
+                newJobStates[availableJob.originalJobId] = Pair(isSaved, isApplied)
+            }
+            _jobStates.value = newJobStates
 
             // Update states for all available jobs based on database data
             allAvailableJobs.value.forEach { job ->
                 val isSaved = saved.any {
-                    it.originalJobId == job.originalJobId ||
-                            it.id == job.id ||
-                            (job.originalJobId > 10000 && it.originalJobId == job.originalJobId) ||
-                            (it.originalJobId > 10000 && it.originalJobId == job.originalJobId)
+                    it.id == job.id ||
+                            it.originalJobId == job.originalJobId ||
+                            (job.originalJobId != 0 && it.originalJobId == job.originalJobId)
                 }
                 val isApplied = applied.any {
-                    it.originalJobId == job.originalJobId ||
-                            it.id == job.id ||
-                            (job.originalJobId > 10000 && it.originalJobId == job.originalJobId) ||
-                            (it.originalJobId > 10000 && it.originalJobId == job.originalJobId)
+                    it.id == job.id ||
+                            it.originalJobId == job.originalJobId ||
+                            (job.originalJobId != 0 && it.originalJobId == job.originalJobId)
                 }
                 newJobStates[job.originalJobId] = Pair(isSaved, isApplied)
 
                 // Debug logging for each job
                 if (isSaved || isApplied) {
-                    Log.d("JobViewModel", "Job ${job.title} (ID: ${job.originalJobId}) - Saved: $isSaved, Applied: $isApplied")
+                    Log.d("JobViewModel", "Job ${job.title} (ID: ${job.id}, OriginalID: ${job.originalJobId}) - Saved: $isSaved, Applied: $isApplied")
                 }
             }
 
             // Only update _jobStates if we actually have meaningful changes
-            // This prevents overriding immediate UI updates
             if (newJobStates.isNotEmpty()) {
                 _jobStates.value = newJobStates
                 Log.d("JobViewModel", "Updated job states: ${newJobStates.size} entries")
@@ -850,8 +929,10 @@ class JobViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             try {
                 val user = currentUser.value
+                val userProfile = userProfile.value
                 if (user != null && postId.isNotBlank()) {
-                    val success = firebaseService.togglePostLike(postId, user.id)
+                    val userName = userProfile?.name ?: user.name
+                    val success = firebaseService.togglePostLike(postId, user.id, userName)
                     if (success) {
                         loadCommunityPosts()
                     }
@@ -862,15 +943,25 @@ class JobViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun isPostLiked(post: CommunityPost): Boolean {
+    // Also update the isPostLiked method to take postId instead of post
+    fun isPostLiked(postId: String): Boolean {
         val user = currentUser.value ?: return false
-        return post.likedBy.split(",").contains(user.id.toString())
-    }
+        val post = allCommunityPosts.find { it.id == postId } ?: return false
 
-    // UTILITY METHODS
-    fun getAllAvailableJobs(): List<Job> {
-        return allAvailableJobs.value.ifEmpty {
-            sampleRecommendedJobs + sampleNewJobs
+        if (post.likedBy.isBlank()) {
+            return false
+        }
+
+        return try {
+            val entries = post.likedBy.split(",")
+            entries.any { entry ->
+                val trimmed = entry.trim()
+                // Check if entry starts with current user's ID
+                trimmed.startsWith("${user.id}:")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 

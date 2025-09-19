@@ -1,3 +1,4 @@
+// CommunityScreen.kt - Fixed version
 package com.example.madassignment.screens
 
 import androidx.compose.foundation.layout.*
@@ -15,16 +16,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.madassignment.components.CommunityPost
-import com.example.madassignment.components.CreatePostDialog
-import com.example.madassignment.components.PurpleTopAppBar
+import com.example.madassignment.components.*
 import com.example.madassignment.data.JobViewModel
 import kotlinx.coroutines.launch
+import java.util.Date
+import com.example.madassignment.components.CommunityPost
+import com.example.madassignment.components.CreatePostDialog
+import com.example.madassignment.components.DeletePostDialog
+import com.example.madassignment.components.EditPostDialog
+import com.example.madassignment.components.LikesDialog
+import com.example.madassignment.components.PurpleTopAppBar
+import com.example.madassignment.data.CommunityPost
+
 
 @Composable
 fun CommunityScreen(jobViewModel: JobViewModel) {
     var searchQuery by remember { mutableStateOf("") }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf("all") } // "all" or "mine"
+    var showLikesDialog by remember { mutableStateOf(false) }
+    var selectedPostForLikes by remember { mutableStateOf<String?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedPostForDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     val currentUser by jobViewModel.currentUser.collectAsState()
     val userProfile by jobViewModel.userProfile.collectAsState()
@@ -33,8 +46,8 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val filteredPosts = remember(searchQuery, allPosts) {
-        if (searchQuery.isBlank()) {
+    val filteredPosts = remember(searchQuery, allPosts, selectedFilter, currentUser) {
+        var result = if (searchQuery.isBlank()) {
             allPosts
         } else {
             allPosts.filter { post ->
@@ -43,7 +56,19 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                         post.content.contains(searchQuery, ignoreCase = true)
             }
         }
+
+        // Apply user filter
+        if (selectedFilter == "mine" && currentUser != null) {
+            result = result.filter { it.userId == currentUser!!.id }
+        }
+
+        result
     }
+
+    var showEditDialog by remember { mutableStateOf(false) }
+    var selectedPostForEdit by remember { mutableStateOf<CommunityPost?>(null) }
+
+    // REMOVED: LaunchedEffect with loadAllUsers() since it doesn't exist
 
     Scaffold(
         topBar = {
@@ -81,6 +106,25 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 keyboardActions = KeyboardActions(onSearch = {})
             )
 
+            // Filter buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                FilterChip(
+                    selected = selectedFilter == "all",
+                    onClick = { selectedFilter = "all" },
+                    label = { Text("All Posts") }
+                )
+                FilterChip(
+                    selected = selectedFilter == "mine",
+                    onClick = { selectedFilter = "mine" },
+                    label = { Text("My Posts") }
+                )
+            }
+
             // Title
             Text(
                 text = "Community Discussions",
@@ -93,6 +137,12 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                 if (searchQuery.isNotBlank()) {
                     Text(
                         text = "No posts found for \"$searchQuery\"",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else if (selectedFilter == "mine") {
+                    Text(
+                        text = "You haven't posted anything yet.",
                         modifier = Modifier.padding(16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -111,38 +161,118 @@ fun CommunityScreen(jobViewModel: JobViewModel) {
                     .padding(horizontal = 16.dp)
             ) {
                 items(filteredPosts) { post ->
+                    val isOwnPost = currentUser != null && post.userId == currentUser!!.id
+                    val isLiked = jobViewModel.isPostLiked(post.id)
+
+                    // Use the renamed composable
                     CommunityPost(
                         post = post,
+                        jobViewModel = jobViewModel,
                         onLikeClick = {
-                            jobViewModel.togglePostLike(post.id) // ← Now passes String ID
+                            jobViewModel.togglePostLike(post.id)
                         },
-                        isLiked = jobViewModel.isPostLiked(post)
+                        onEditClick = if (isOwnPost) {
+                            {
+                                selectedPostForEdit = post
+                                showEditDialog = true
+                            }
+                        } else {
+                            null
+                        },
+                        onLongPress = if (isOwnPost) {
+                            {
+                                selectedPostForDelete = post
+                                showDeleteDialog = true
+                            }
+                        } else {
+                            null
+                        },
+                        isLiked = isLiked,
+                        isOwnPost = isOwnPost,
+                        onSeeMoreLikes = {
+                            selectedPostForLikes = post.id
+                            showLikesDialog = true
+                        }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
     }
 
+    // Create Post Dialog
     if (showCreateDialog && currentUser != null) {
         CreatePostDialog(
             onDismiss = { showCreateDialog = false },
             onPostCreated = { content ->
-                val newPost = com.example.madassignment.data.CommunityPost(
+                val newPost = CommunityPost(
                     id = "",
                     author = userProfile?.name ?: currentUser?.name ?: "Anonymous",
                     timeAgo = "Just now",
                     company = userProfile?.company ?: "",
                     content = content,
-                    likes = 0
+                    likes = 0,
+                    userId = currentUser!!.id,
+                    createdAt = Date()
                 )
                 jobViewModel.addCommunityPost(newPost)
                 scope.launch {
                     snackbarHostState.showSnackbar("Post created successfully!")
                 }
+                showCreateDialog = false
             },
             userName = userProfile?.name ?: currentUser?.name ?: "",
             userCompany = userProfile?.company ?: ""
         )
     }
+
+    // Likes Dialog
+    if (showLikesDialog && selectedPostForLikes != null) {
+        LikesDialog(
+            postId = selectedPostForLikes!!,
+            jobViewModel = jobViewModel,
+            onDismiss = {
+                showLikesDialog = false
+                selectedPostForLikes = null
+            }
+        )
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog && selectedPostForDelete != null) {
+        DeletePostDialog(
+            post = selectedPostForDelete!!,
+            onDismiss = {
+                showDeleteDialog = false
+                selectedPostForDelete = null
+            },
+            onConfirm = {
+                jobViewModel.deleteCommunityPost(selectedPostForDelete!!)
+                showDeleteDialog = false
+                selectedPostForDelete = null
+                scope.launch {
+                    snackbarHostState.showSnackbar("Post deleted successfully")
+                }
+            }
+        )
+    }
+
+    // Edit Post Dialog
+    if (showEditDialog && selectedPostForEdit != null) {
+        EditPostDialog(
+            post = selectedPostForEdit!!,
+            onDismiss = {
+                showEditDialog = false
+                selectedPostForEdit = null
+            },
+            onPostUpdated = { newContent ->
+                jobViewModel.updateCommunityPost(selectedPostForEdit!!.id, newContent)
+                scope.launch {
+                    snackbarHostState.showSnackbar("Post updated successfully!")
+                }
+                showEditDialog = false
+                selectedPostForEdit = null
+            }
+        )
+    }
 }
+
